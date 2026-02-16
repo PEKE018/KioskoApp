@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos base para KioskoApp */
+@layer base {
+  * {
+    @apply border-kiosko-border;
+  }
+
+  body {
+    @apply bg-kiosko-bg text-kiosko-text antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Scrollbar personalizada para modo oscuro */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-kiosko-bg;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-kiosko-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-kiosko-muted;
+  }
+
+  /* Focus visible para accesibilidad */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-kiosko-bg;
+  }
+
+  /* Números monospace para precios */
+  .font-price {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Botón primario */
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 active:bg-primary-800 
+           text-white font-semibold px-4 py-2 rounded-lg 
+           transition-colors duration-150 
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Botón secundario */
+  .btn-secondary {
+    @apply bg-kiosko-card hover:bg-kiosko-border 
+           text-kiosko-text font-medium px-4 py-2 rounded-lg 
+           border border-kiosko-border
+           transition-colors duration-150;
+  }
+
+  /* Botón de éxito */
+  .btn-success {
+    @apply bg-stock-ok hover:bg-green-600 active:bg-green-700 
+           text-white font-semibold px-4 py-2 rounded-lg 
+           transition-colors duration-150;
+  }
+
+  /* Botón de peligro */
+  .btn-danger {
+    @apply bg-stock-critical hover:bg-red-600 active:bg-red-700 
+           text-white font-semibold px-4 py-2 rounded-lg 
+           transition-colors duration-150;
+  }
+
+  /* Botón grande para POS */
+  .btn-pos {
+    @apply bg-stock-ok hover:bg-green-600 active:bg-green-700 
+           text-white font-bold text-xl px-8 py-4 rounded-xl 
+           transition-all duration-150 
+           shadow-lg hover:shadow-xl;
+  }
+
+  /* Input de texto */
+  .input {
+    @apply w-full bg-kiosko-bg border border-kiosko-border rounded-lg 
+           px-4 py-2 text-kiosko-text placeholder-kiosko-muted
+           focus:border-primary-500 focus:ring-1 focus:ring-primary-500
+           transition-colors duration-150;
+  }
+
+  /* Input grande para búsqueda/escaneo */
+  .input-scan {
+    @apply w-full bg-kiosko-bg border-2 border-kiosko-border rounded-xl 
+           px-6 py-4 text-2xl font-mono text-center text-kiosko-text 
+           placeholder-kiosko-muted
+           focus:border-primary-500 focus:ring-2 focus:ring-primary-500
+           transition-all duration-150;
+  }
+
+  /* Card */
+  .card {
+    @apply bg-kiosko-card border border-kiosko-border rounded-xl p-4;
+  }
+
+  /* Badge de stock */
+  .badge-stock-ok {
+    @apply bg-stock-ok/20 text-stock-ok px-2 py-1 rounded-full text-sm font-medium;
+  }
+
+  .badge-stock-low {
+    @apply bg-stock-low/20 text-stock-low px-2 py-1 rounded-full text-sm font-medium;
+  }
+
+  .badge-stock-critical {
+    @apply bg-stock-critical/20 text-stock-critical px-2 py-1 rounded-full text-sm font-medium;
+  }
+
+  /* Tabla */
+  .table {
+    @apply w-full;
+  }
+
+  .table th {
+    @apply text-left text-kiosko-muted font-medium text-sm uppercase tracking-wider 
+           px-4 py-3 border-b border-kiosko-border;
+  }
+
+  .table td {
+    @apply px-4 py-3 border-b border-kiosko-border;
+  }
+
+  .table tr:hover td {
+    @apply bg-kiosko-bg/50;
+  }
+
+  /* Sidebar link */
+  .nav-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg 
+           text-kiosko-muted hover:text-kiosko-text hover:bg-kiosko-card
+           transition-colors duration-150;
+  }
+
+  .nav-link.active {
+    @apply bg-primary-600/20 text-primary-400;
+  }
+
+  /* Indicador de escaneo exitoso */
+  .scan-success {
+    @apply animate-pulse-green;
+  }
+
+  /* Chip de categoría */
+  .category-chip {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full 
+           text-sm font-medium cursor-pointer
+           transition-all duration-150 hover:scale-105;
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/60 flex items-center justify-center z-50;
+  }
+
+  .modal-content {
+    @apply bg-kiosko-card border border-kiosko-border rounded-2xl 
+           p-6 max-w-lg w-full mx-4 shadow-2xl;
+  }
+
+  /* Keypad para PIN */
+  .keypad-btn {
+    @apply w-16 h-16 rounded-xl bg-kiosko-bg border border-kiosko-border
+           text-2xl font-bold text-kiosko-text
+           hover:bg-kiosko-card active:bg-primary-600
+           transition-colors duration-100;
+  }
+}
+
+@layer utilities {
+  /* Texto truncado */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Grid para productos */
+  .product-grid {
+    @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4;
+  }
+
+  /* Animación de entrada */
+  .animate-enter {
+    animation: enter 0.2s ease-out;
+  }
+
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}

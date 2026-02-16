@@ -1,0 +1,309 @@
+// Esquema de base de datos para KioskoApp
+// SQLite + Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USUARIOS Y AUTENTICACIÓN
+// ============================================
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String   // Hash bcrypt
+  pin       String?  @unique // PIN de 4 dígitos para cambio rápido
+  name      String
+  role      String   @default("CASHIER") // ADMIN | CASHIER
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  sales          Sale[]
+  stockMovements StockMovement[]
+  cashRegisters  CashRegister[]
+
+  @@index([username])
+  @@index([pin])
+}
+
+// UserRole: ADMIN | CASHIER
+
+// ============================================
+// CATEGORÍAS
+// ============================================
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+  color     String   @default("#3b82f6") // Color hex
+  icon      String?  // Nombre del icono (react-icons)
+  order     Int      @default(0) // Para ordenar en UI
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  products Product[]
+
+  @@index([order])
+}
+
+// ============================================
+// PRODUCTOS
+// ============================================
+
+model Product {
+  id          String   @id @default(uuid())
+  barcode     String   @unique
+  name        String
+  description String?
+  
+  // Precios
+  price       Float    // Precio de venta
+  cost        Float    @default(0) // Costo de compra
+  isCigarette Boolean  @default(false) // Marcar como cigarrillo para recargo especial
+  
+  // Stock
+  stock       Int      @default(0)
+  minStock    Int      @default(5) // Alerta cuando stock < minStock
+  
+  // Unidades
+  unitsPerBox Int      @default(1) // Cuántas unidades trae una caja
+  sellByUnit  Boolean  @default(true) // Si se vende por unidad
+  
+  // Categoría
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  // Metadata
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  saleItems      SaleItem[]
+  stockMovements StockMovement[]
+
+  @@index([barcode])
+  @@index([categoryId])
+  @@index([name])
+  @@index([stock]) // Para consultas de stock bajo
+}
+
+// ============================================
+// VENTAS
+// ============================================
+
+model Sale {
+  id            String        @id @default(uuid())
+  
+  // Totales
+  subtotal      Float
+  discount      Float         @default(0)
+  total         Float
+  
+  // Pago
+  paymentMethod String // CASH | DEBIT | CREDIT | MERCADOPAGO | TRANSFER | FIADO | OTHER
+  amountPaid    Float         // Monto que pagó el cliente
+  change        Float         @default(0) // Vuelto
+  
+  // Cliente (para fiado)
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  
+  // Estado
+  status        String    @default("COMPLETED") // COMPLETED | CANCELLED | PENDING
+  cancelReason  String?
+  
+  // Usuario
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  
+  // Caja
+  cashRegisterId String?
+  cashRegister   CashRegister? @relation(fields: [cashRegisterId], references: [id])
+  
+  // Timestamps
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Items
+  items         SaleItem[]
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([status])
+  @@index([cashRegisterId])
+  @@index([customerId])
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  quantity  Int
+  unitPrice Float   // Precio al momento de la venta
+  subtotal  Float   // quantity * unitPrice
+  
+  // Producto
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  
+  // Venta
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+// PaymentMethod: CASH | DEBIT | CREDIT | MERCADOPAGO | TRANSFER | OTHER
+// SaleStatus: COMPLETED | CANCELLED | PENDING
+
+// ============================================
+// MOVIMIENTOS DE STOCK
+// ============================================
+
+model StockMovement {
+  id        String            @id @default(uuid())
+  type      String            // IN | OUT | SALE | ADJUSTMENT | RETURN | LOSS
+  quantity  Int               // Positivo para entrada, negativo para salida
+  reason    String            // Descripción del movimiento
+  
+  // Stock antes y después
+  stockBefore Int
+  stockAfter  Int
+  
+  // Producto
+  productId String
+  product   Product           @relation(fields: [productId], references: [id])
+  
+  // Usuario que hizo el movimiento
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  
+  // Venta relacionada (si aplica)
+  saleId    String?
+  
+  createdAt DateTime          @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+// StockMovementType: IN | OUT | SALE | ADJUSTMENT | RETURN | LOSS
+
+// ============================================
+// CAJA REGISTRADORA
+// ============================================
+
+model CashRegister {
+  id            String    @id @default(uuid())
+  
+  // Estado
+  status        String @default("OPEN") // OPEN | CLOSED
+  
+  // Montos
+  initialAmount Float     // Monto inicial al abrir
+  finalAmount   Float?    // Monto final al cerrar
+  salesTotal    Float     @default(0) // Total de ventas en efectivo
+  
+  // Diferencia
+  difference    Float?    // finalAmount - (initialAmount + salesTotal)
+  notes         String?   // Notas del cierre
+  
+  // Usuario
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  
+  // Timestamps
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+
+  // Ventas de este turno
+  sales         Sale[]
+
+  @@index([openedAt])
+  @@index([userId])
+  @@index([status])
+}
+
+// CashRegisterStatus: OPEN | CLOSED
+
+// ============================================
+// CLIENTES (FIADO / CUENTA CORRIENTE)
+// ============================================
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  notes     String?
+  
+  // Balance (positivo = debe, negativo = a favor)
+  balance   Float    @default(0)
+  
+  // Estado
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  sales     Sale[]
+  payments  CreditPayment[]
+
+  @@index([name])
+  @@index([balance])
+}
+
+model CreditPayment {
+  id         String   @id @default(uuid())
+  amount     Float    // Monto pagado
+  notes      String?  // Notas del pago
+  
+  // Cliente
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+// ============================================
+// CONFIGURACIÓN DE LA APP
+// ============================================
+
+model AppConfig {
+  id        String   @id @default("config")
+  
+  // Datos del negocio
+  businessName    String  @default("Mi Kiosko")
+  businessAddress String?
+  businessPhone   String?
+  businessCuit    String?
+  
+  // Configuración de tickets
+  ticketHeader    String  @default("¡Gracias por su compra!")
+  ticketFooter    String?
+  
+  // Configuración de pagos
+  transferFeePercent Float @default(0) // Porcentaje adicional para transferencias
+  cigaretteTransferFeePercent Float @default(0) // Porcentaje adicional para cigarrillos en transferencia
+  
+  // Configuración general
+  defaultMinStock Int     @default(5)
+  autoBackup      Boolean @default(true)
+  sessionTimeout  Int     @default(30) // Minutos
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

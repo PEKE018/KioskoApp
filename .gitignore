@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+out/
+
+# Release builds
+release/*.exe
+release/*.exe.blockmap
+release/*.msi
+release/*.dmg
+release/*.AppImage
+release/*.snap
+release/win-unpacked/
+release/mac/
+release/linux-unpacked/
+release/builder-debug.yml
+release/builder-effective-config.yaml
+
+# Database
+*.db
+*.db-journal
+prisma/*.db
+prisma/*.db-journal
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temp files
+*.tmp
+*.temp
+.cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# Test
+coverage/
