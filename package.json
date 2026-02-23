@@ -1,6 +1,6 @@
 {
   "name": "kiosko-app",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Sistema de gestión de stock y ventas para kioscos",
   "main": "dist/main/index.js",
   "author": "KioskoApp",
@@ -58,6 +58,7 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
+    "vite-plugin-html": "^3.2.2",
     "vitest": "^4.0.18",
     "wait-on": "^7.2.0"
   },
