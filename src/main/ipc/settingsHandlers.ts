@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { logger } from '../utils/logger';
 import { prisma } from '../database/init';
 
 export function registerSettingsHandlers() {
@@ -18,7 +19,7 @@ export function registerSettingsHandlers() {
 
       return { success: true, data: config };
     } catch (error) {
-      console.error('Error getting settings:', error);
+      logger.error('Settings', 'Error getting settings', error);
       return { success: false, error: 'Error al obtener configuración' };
     }
   });
@@ -45,7 +46,7 @@ export function registerSettingsHandlers() {
 
       return { success: true, data: config };
     } catch (error) {
-      console.error('Error updating settings:', error);
+      logger.error('Settings', 'Error updating settings', error);
       return { success: false, error: 'Error al guardar configuración' };
     }
   });

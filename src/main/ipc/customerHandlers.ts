@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron';
+import { logger } from '../utils/logger';
 import { prisma } from '../database/init';
 
 interface CreateCustomerData {
@@ -35,7 +36,7 @@ export function registerCustomerHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: customers };
     } catch (error) {
-      console.error('Error getting customers:', error);
+      logger.error('Customer', '\Error getting customers:', error);
       return { success: false, error: 'Error al obtener clientes' };
     }
   });
@@ -62,7 +63,7 @@ export function registerCustomerHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: customer };
     } catch (error) {
-      console.error('Error getting customer:', error);
+      logger.error('Customer', '\Error getting customer:', error);
       return { success: false, error: 'Error al obtener cliente' };
     }
   });
@@ -80,7 +81,7 @@ export function registerCustomerHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: customers };
     } catch (error) {
-      console.error('Error searching customers:', error);
+      logger.error('Customer', '\Error searching customers:', error);
       return { success: false, error: 'Error al buscar clientes' };
     }
   });
@@ -98,7 +99,7 @@ export function registerCustomerHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: customer };
     } catch (error) {
-      console.error('Error creating customer:', error);
+      logger.error('Customer', '\Error creating customer:', error);
       return { success: false, error: 'Error al crear cliente' };
     }
   });
@@ -112,7 +113,7 @@ export function registerCustomerHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: customer };
     } catch (error) {
-      console.error('Error updating customer:', error);
+      logger.error('Customer', '\Error updating customer:', error);
       return { success: false, error: 'Error al actualizar cliente' };
     }
   });
@@ -143,7 +144,7 @@ export function registerCustomerHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: result };
     } catch (error) {
-      console.error('Error registering payment:', error);
+      logger.error('Customer', '\Error registering payment:', error);
       return { success: false, error: 'Error al registrar pago' };
     }
   });
@@ -163,7 +164,7 @@ export function registerCustomerHandlers(ipcMain: IpcMain): void {
       });
       return { success: true };
     } catch (error) {
-      console.error('Error deleting customer:', error);
+      logger.error('Customer', '\Error deleting customer:', error);
       return { success: false, error: 'Error al eliminar cliente' };
     }
   });
@@ -180,7 +181,7 @@ export function registerCustomerHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: customers };
     } catch (error) {
-      console.error('Error getting customers with debt:', error);
+      logger.error('Customer', '\Error getting customers with debt:', error);
       return { success: false, error: 'Error al obtener clientes con deuda' };
     }
   });

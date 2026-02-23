@@ -62,3 +62,7 @@ pnpm-debug.log*
 
 # Test
 coverage/
+
+# License keys (sensitive)
+license.key
+*.key

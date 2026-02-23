@@ -16,6 +16,7 @@ interface POSState {
   amountPaid: number;
   lastScannedProduct: Product | null;
   notFoundBarcode: string | null;
+  multipleProducts: Product[] | null; // Productos con mismo código de barras
   isProcessing: boolean;
   error: string | null;
 
@@ -38,6 +39,7 @@ interface POSState {
   processSale: (userId: string, cashRegisterId?: string, transferFee?: number, customerId?: string) => Promise<boolean>;
   scanBarcode: (barcode: string) => Promise<Product | null>;
   clearNotFoundBarcode: () => void;
+  clearMultipleProducts: () => void;
 }
 
 export const usePOSStore = create<POSState>((set, get) => ({
@@ -47,6 +49,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   amountPaid: 0,
   lastScannedProduct: null,
   notFoundBarcode: null,
+  multipleProducts: null,
   isProcessing: false,
   error: null,
 
@@ -252,14 +255,23 @@ export const usePOSStore = create<POSState>((set, get) => ({
     try {
       const result = await window.api.products.getByBarcode(barcode) as {
         success: boolean;
-        data?: Product;
+        data?: Product | Product[];
         notFound?: boolean;
+        multiple?: boolean;
         error?: string;
       };
 
       if (result.success && result.data) {
-        get().addItem(result.data);
-        return result.data;
+        // Si hay múltiples productos con el mismo código
+        if (result.multiple && Array.isArray(result.data)) {
+          set({ multipleProducts: result.data });
+          return null; // No agregar automáticamente, mostrar selector
+        }
+        
+        // Producto único, agregar al carrito
+        const product = result.data as Product;
+        get().addItem(product);
+        return product;
       }
 
       if (result.notFound) {
@@ -275,6 +287,10 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
   clearNotFoundBarcode: () => {
     set({ notFoundBarcode: null, error: null });
+  },
+
+  clearMultipleProducts: () => {
+    set({ multipleProducts: null });
   },
 }));
 

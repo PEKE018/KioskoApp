@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron';
+import { logger } from '../utils/logger';
 import { prisma } from '../database/init';
 
 // Usuario actual (se setea desde authHandlers)
@@ -57,7 +58,7 @@ export function registerStockHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: result };
     } catch (error) {
-      console.error('Error adding stock:', error);
+      logger.error('Stock', 'Error adding stock', error);
       return { success: false, error: 'Error al agregar stock' };
     }
   });
@@ -114,7 +115,7 @@ export function registerStockHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: result };
     } catch (error) {
-      console.error('Error removing stock:', error);
+      logger.error('Stock', 'Error removing stock', error);
       const message = error instanceof Error ? error.message : 'Error al quitar stock';
       return { success: false, error: message };
     }
@@ -168,7 +169,7 @@ export function registerStockHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: result };
     } catch (error) {
-      console.error('Error adjusting stock:', error);
+      logger.error('Stock', 'Error adjusting stock', error);
       return { success: false, error: 'Error al ajustar stock' };
     }
   });
@@ -188,7 +189,7 @@ export function registerStockHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: movements };
     } catch (error) {
-      console.error('Error getting stock movements:', error);
+      logger.error('Stock', 'Error getting stock movements', error);
       return { success: false, error: 'Error al obtener movimientos' };
     }
   });
@@ -207,7 +208,7 @@ export function registerStockHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: movements };
     } catch (error) {
-      console.error('Error getting all stock movements:', error);
+      logger.error('Stock', 'Error getting all stock movements', error);
       return { success: false, error: 'Error al obtener movimientos' };
     }
   });

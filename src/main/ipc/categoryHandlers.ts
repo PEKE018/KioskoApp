@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron';
+import { logger } from '../utils/logger';
 import { prisma } from '../database/init';
 
 interface CreateCategoryData {
@@ -24,7 +25,7 @@ export function registerCategoryHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: categories };
     } catch (error) {
-      console.error('Error getting categories:', error);
+      logger.error('Category', 'Error getting categories', error);
       return { success: false, error: 'Error al obtener categorías' };
     }
   });
@@ -48,7 +49,7 @@ export function registerCategoryHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: category };
     } catch (error) {
-      console.error('Error creating category:', error);
+      logger.error('Category', 'Error creating category', error);
       return { success: false, error: 'Error al crear categoría' };
     }
   });
@@ -62,7 +63,7 @@ export function registerCategoryHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: category };
     } catch (error) {
-      console.error('Error updating category:', error);
+      logger.error('Category', 'Error updating category', error);
       return { success: false, error: 'Error al actualizar categoría' };
     }
   });
@@ -89,7 +90,7 @@ export function registerCategoryHandlers(ipcMain: IpcMain): void {
 
       return { success: true };
     } catch (error) {
-      console.error('Error deleting category:', error);
+      logger.error('Category', 'Error deleting category', error);
       return { success: false, error: 'Error al eliminar categoría' };
     }
   });
@@ -109,7 +110,7 @@ export function registerCategoryHandlers(ipcMain: IpcMain): void {
 
       return { success: true };
     } catch (error) {
-      console.error('Error reordering categories:', error);
+      logger.error('Category', 'Error reordering categories', error);
       return { success: false, error: 'Error al reordenar categorías' };
     }
   });

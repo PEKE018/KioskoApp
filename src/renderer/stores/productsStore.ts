@@ -8,6 +8,7 @@ export interface Product {
   price: number;
   cost: number;
   isCigarette: boolean;
+  isCombo: boolean;
   stock: number;
   minStock: number;
   unitsPerBox: number;
@@ -19,6 +20,17 @@ export interface Product {
     color: string;
     icon?: string;
   };
+  comboComponents?: Array<{
+    id: string;
+    quantity: number;
+    component: {
+      id: string;
+      name: string;
+      barcode: string;
+      stock: number;
+      price: number;
+    };
+  }>;
   active: boolean;
   createdAt: string;
   updatedAt: string;

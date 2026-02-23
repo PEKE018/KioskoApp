@@ -1,0 +1,74 @@
+C:\Users\Valen\Documents\KioskoApp\release\KioskoApp Setup 1.0.0.exeACUERDO DE LICENCIA DE USUARIO FINAL DE KIOSKOAPP
+==================================================
+
+IMPORTANTE: LEA ATENTAMENTE ANTES DE INSTALAR
+
+Al instalar KioskoApp, usted acepta los siguientes términos y condiciones:
+
+1. LICENCIA DE USO
+------------------
+KioskoApp le otorga una licencia no exclusiva y no transferible para usar 
+este software en un único equipo o punto de venta.
+
+2. RESTRICCIONES
+----------------
+Usted NO puede:
+- Copiar, modificar o distribuir el software sin autorización
+- Realizar ingeniería inversa o descompilar el software
+- Sublicenciar, alquilar o prestar el software a terceros
+- Utilizar el software para actividades ilegales
+
+3. PROPIEDAD INTELECTUAL
+------------------------
+KioskoApp y todos sus componentes son propiedad exclusiva del desarrollador.
+Todos los derechos no otorgados expresamente están reservados.
+
+4. DATOS Y PRIVACIDAD
+---------------------
+- Sus datos de negocio se almacenan localmente en su equipo
+- No recopilamos ni transmitimos información a servidores externos
+- Es su responsabilidad realizar copias de seguridad de sus datos
+- El software incluye funciones de backup automático
+
+5. GARANTÍA LIMITADA
+--------------------
+El software se proporciona "tal cual" sin garantías de ningún tipo.
+El desarrollador no será responsable por daños directos o indirectos
+que puedan surgir del uso del software.
+
+6. PERÍODO DE PRUEBA
+--------------------
+El software incluye un período de prueba de 15 días con funcionalidad
+completa. Después de este período, se requiere una licencia válida.
+
+7. ACTUALIZACIONES
+------------------
+Las actualizaciones menores son gratuitas para usuarios con licencia.
+Las actualizaciones mayores pueden requerir actualización de licencia.
+
+8. SOPORTE TÉCNICO
+------------------
+El soporte técnico está disponible según el tipo de licencia adquirida:
+- Trial: Soporte por email
+- Basic: Soporte por email (48h respuesta)
+- Pro: Soporte prioritario (24h respuesta)
+- Enterprise: Soporte dedicado + instalación
+
+9. TERMINACIÓN
+--------------
+Esta licencia termina automáticamente si viola cualquiera de sus términos.
+Al terminar, debe desinstalar el software y eliminar todas las copias.
+
+10. ACEPTACIÓN
+--------------
+Al hacer clic en "Acepto" o al instalar el software, usted confirma que:
+- Ha leído y comprendido estos términos
+- Acepta cumplir con todas las condiciones
+- Tiene autoridad legal para aceptar estos términos
+
+Si no está de acuerdo con estos términos, no instale el software.
+
+==================================================
+© 2024-2026 KioskoApp. Todos los derechos reservados.
+Versión del Acuerdo: 1.0
+==================================================

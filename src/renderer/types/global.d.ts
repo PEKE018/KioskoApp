@@ -11,6 +11,11 @@ declare global {
         delete: (id: string) => Promise<unknown>;
         search: (query: string) => Promise<unknown>;
         getLowStock: () => Promise<unknown>;
+        // Combos
+        getSimple: () => Promise<unknown>;
+        getCombos: () => Promise<unknown>;
+        getComboComponents: (comboId: string) => Promise<unknown>;
+        checkComboStock: (comboId: string, quantity?: number) => Promise<unknown>;
       };
       categories: {
         getAll: () => Promise<unknown>;
@@ -41,6 +46,7 @@ declare global {
         getCurrentUser: () => Promise<unknown>;
         restoreSession: (userId: string) => Promise<unknown>;
         changePassword: (oldPassword: string, newPassword: string) => Promise<unknown>;
+        getInitialCredentials: () => Promise<unknown>;
       };
       users: {
         getAll: () => Promise<unknown>;
@@ -59,6 +65,8 @@ declare global {
         getTopProducts: (limit: number, start?: Date, end?: Date) => Promise<unknown>;
         getProfitReport: (start: Date, end: Date) => Promise<unknown>;
         getCategoryReport: (start?: Date, end?: Date) => Promise<unknown>;
+        getByCashier: (date?: Date) => Promise<unknown>;
+        getCashierHistory: (userId: string, days?: number) => Promise<unknown>;
       };
       settings: {
         get: () => Promise<unknown>;
@@ -73,6 +81,31 @@ declare global {
         delete: (id: string) => Promise<unknown>;
         registerPayment: (data: unknown) => Promise<unknown>;
         getWithDebt: () => Promise<unknown>;
+      };
+      backup: {
+        create: () => Promise<unknown>;
+        restore: (backupPath: string) => Promise<unknown>;
+        list: () => Promise<unknown>;
+        delete: (backupPath: string) => Promise<unknown>;
+        export: () => Promise<unknown>;
+        import: () => Promise<unknown>;
+        getDir: () => Promise<unknown>;
+      };
+      license: {
+        validate: () => Promise<unknown>;
+        activate: (licenseKey: string) => Promise<unknown>;
+        getInfo: () => Promise<unknown>;
+        hasFeature: (feature: string) => Promise<unknown>;
+        getMachineId: () => Promise<unknown>;
+      };
+      updater: {
+        check: () => Promise<unknown>;
+        download: () => Promise<unknown>;
+        install: () => Promise<unknown>;
+        getCurrentVersion: () => Promise<unknown>;
+        onUpdateAvailable: (callback: (info: unknown) => void) => void;
+        onDownloadProgress: (callback: (progress: unknown) => void) => void;
+        onUpdateDownloaded: (callback: (info: unknown) => void) => void;
       };
     };
   }

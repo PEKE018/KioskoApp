@@ -4,33 +4,51 @@ const fs = require('fs');
 exports.default = async function(context) {
   const appOutDir = context.appOutDir;
   const resourcesDir = path.join(appOutDir, 'resources');
-  const unpackedDir = path.join(resourcesDir, 'app.asar.unpacked', 'node_modules');
+  const appDir = path.join(resourcesDir, 'app');
   
-  // Fuente de .prisma
-  const prismaSource = path.join(__dirname, '..', 'node_modules', '.prisma');
-  const prismaDest = path.join(unpackedDir, '.prisma');
+  console.log('[afterPack] Configurando Prisma para produccion...');
+  console.log('[afterPack] App dir:', appDir);
   
-  console.log('📦 Copiando .prisma a app.asar.unpacked...');
-  console.log(`   Desde: ${prismaSource}`);
-  console.log(`   Hacia: ${prismaDest}`);
+  // Verificar y copiar .prisma si no existe
+  const prismaDestDir = path.join(appDir, 'node_modules', '.prisma');
+  const prismaSourceDir = path.join(__dirname, '..', 'node_modules', '.prisma');
   
-  // Crear directorio si no existe
-  if (!fs.existsSync(unpackedDir)) {
-    fs.mkdirSync(unpackedDir, { recursive: true });
+  if (!fs.existsSync(prismaDestDir)) {
+    console.log('[afterPack] Copiando .prisma manualmente...');
+    console.log('[afterPack] Desde:', prismaSourceDir);
+    console.log('[afterPack] Hacia:', prismaDestDir);
+    
+    if (fs.existsSync(prismaSourceDir)) {
+      copyRecursive(prismaSourceDir, prismaDestDir);
+      console.log('[afterPack] .prisma copiado correctamente');
+    } else {
+      console.error('[afterPack] ERROR: No se encontro .prisma en node_modules del proyecto');
+    }
+  } else {
+    console.log('[afterPack] .prisma ya existe en destino');
   }
   
-  // Copiar recursivamente
-  copyRecursive(prismaSource, prismaDest);
-  
-  console.log('✅ .prisma copiado correctamente');
+  // Verificar query engine
+  const clientDir = path.join(prismaDestDir, 'client');
+  if (fs.existsSync(clientDir)) {
+    const files = fs.readdirSync(clientDir);
+    const engineFile = files.find(f => f.includes('query_engine'));
+    if (engineFile) {
+      console.log('[afterPack] Query engine encontrado:', engineFile);
+    } else {
+      console.log('[afterPack] WARN: Query engine no encontrado. Archivos:', files.join(', '));
+    }
+  } else {
+    console.log('[afterPack] ERROR: Directorio client no existe en:', prismaDestDir);
+  }
 };
 
 function copyRecursive(src, dest) {
-  const exists = fs.existsSync(src);
-  const stats = exists && fs.statSync(src);
-  const isDirectory = exists && stats.isDirectory();
+  if (!fs.existsSync(src)) return;
   
-  if (isDirectory) {
+  const stats = fs.statSync(src);
+  
+  if (stats.isDirectory()) {
     if (!fs.existsSync(dest)) {
       fs.mkdirSync(dest, { recursive: true });
     }

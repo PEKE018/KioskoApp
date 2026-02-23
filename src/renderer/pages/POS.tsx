@@ -47,6 +47,14 @@ export default function POSPage() {
   const [cashLoading, setCashLoading] = useState(true);
   const [transferFeePercent, setTransferFeePercent] = useState(0);
   const [cigaretteTransferFeePercent, setCigaretteTransferFeePercent] = useState(0);
+  
+  // Estados para navegación con flechas
+  const [selectedSearchIndex, setSelectedSearchIndex] = useState(-1);
+  const [selectedCartIndex, setSelectedCartIndex] = useState(-1);
+  const [selectedPaymentIndex, setSelectedPaymentIndex] = useState(0);
+  
+  const paymentMethodsOrder: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'MERCADOPAGO', 'TRANSFER', 'FIADO'];
+  
   const [newProductForm, setNewProductForm] = useState({
     barcode: '',
     name: '',
@@ -78,6 +86,7 @@ export default function POSPage() {
     amountPaid,
     lastScannedProduct,
     notFoundBarcode,
+    multipleProducts,
     isProcessing,
     error,
     addItem,
@@ -90,6 +99,7 @@ export default function POSPage() {
     scanBarcode,
     processSale,
     clearNotFoundBarcode,
+    clearMultipleProducts,
   } = usePOSStore();
 
   const { subtotal, total, change, itemsCount } = usePOSTotals();
@@ -133,16 +143,16 @@ export default function POSPage() {
 
   // Focus en input de escaneo
   useEffect(() => {
-    if (!showPayment && !showSearch && !showAddProduct) {
+    if (!showPayment && !showSearch && !showAddProduct && !multipleProducts) {
       scanInputRef.current?.focus();
     }
-  }, [showPayment, showSearch, showAddProduct, items, lastScannedProduct]);
+  }, [showPayment, showSearch, showAddProduct, multipleProducts, items, lastScannedProduct]);
 
   // Mantener focus en el input de escaneo cuando se hace click en cualquier parte
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       // Si no hay modales abiertos y el click no fue en un input/button/select
-      if (!showPayment && !showSearch && !showAddProduct) {
+      if (!showPayment && !showSearch && !showAddProduct && !multipleProducts) {
         const target = e.target as HTMLElement;
         const isInteractive = target.tagName === 'INPUT' || 
                               target.tagName === 'BUTTON' || 
@@ -158,7 +168,7 @@ export default function POSPage() {
 
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
-  }, [showPayment, showSearch, showAddProduct]);
+  }, [showPayment, showSearch, showAddProduct, multipleProducts]);
 
   // Focus en monto cuando se abre panel de pago
   useEffect(() => {
@@ -219,6 +229,7 @@ export default function POSPage() {
       if (e.key === 'F2' && items.length > 0) {
         e.preventDefault();
         setShowPayment(true);
+        setSelectedPaymentIndex(paymentMethodsOrder.indexOf(paymentMethod));
       }
       // Escape - Cerrar modales
       if (e.key === 'Escape') {
@@ -226,32 +237,133 @@ export default function POSPage() {
           setShowPayment(false);
         } else if (showSearch) {
           setShowSearch(false);
+          setSelectedSearchIndex(-1);
         }
       }
       // F4 - Buscar producto
       if (e.key === 'F4') {
         e.preventDefault();
         setShowSearch(true);
+        setSelectedSearchIndex(-1);
       }
       // F12 - Limpiar carrito
       if (e.key === 'F12') {
         e.preventDefault();
         clearCart();
+        setSelectedCartIndex(-1);
+      }
+      
+      // Navegación con flechas en modal de búsqueda
+      if (showSearch && searchResults.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSelectedSearchIndex(prev => 
+            prev < searchResults.length - 1 ? prev + 1 : 0
+          );
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSelectedSearchIndex(prev => 
+            prev > 0 ? prev - 1 : searchResults.length - 1
+          );
+        }
+        if (e.key === 'Enter' && selectedSearchIndex >= 0) {
+          e.preventDefault();
+          handleSelectProduct(searchResults[selectedSearchIndex]);
+        }
+      }
+      
+      // Navegación con flechas en carrito (cuando no hay modales)
+      if (!showSearch && !showPayment && !showAddProduct && items.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSelectedCartIndex(prev => 
+            prev < items.length - 1 ? prev + 1 : 0
+          );
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSelectedCartIndex(prev => 
+            prev > 0 ? prev - 1 : items.length - 1
+          );
+        }
+        // + o = para incrementar cantidad del item seleccionado
+        if ((e.key === '+' || e.key === '=') && selectedCartIndex >= 0) {
+          e.preventDefault();
+          incrementQuantity(items[selectedCartIndex].product.id);
+        }
+        // - para decrementar cantidad del item seleccionado
+        if (e.key === '-' && selectedCartIndex >= 0) {
+          e.preventDefault();
+          decrementQuantity(items[selectedCartIndex].product.id);
+        }
+        // Delete o Supr para eliminar item seleccionado
+        if (e.key === 'Delete' && selectedCartIndex >= 0) {
+          e.preventDefault();
+          removeItem(items[selectedCartIndex].product.id);
+          setSelectedCartIndex(prev => prev > 0 ? prev - 1 : -1);
+        }
+      }
+      
+      // Navegación con flechas en modal de pago
+      if (showPayment) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          setSelectedPaymentIndex(prev => prev > 0 ? prev - 1 : paymentMethodsOrder.length - 1);
+          setPaymentMethod(paymentMethodsOrder[selectedPaymentIndex > 0 ? selectedPaymentIndex - 1 : paymentMethodsOrder.length - 1]);
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          setSelectedPaymentIndex(prev => prev < paymentMethodsOrder.length - 1 ? prev + 1 : 0);
+          setPaymentMethod(paymentMethodsOrder[selectedPaymentIndex < paymentMethodsOrder.length - 1 ? selectedPaymentIndex + 1 : 0]);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [items.length, showPayment, showSearch, clearCart]);
+  }, [items, showPayment, showSearch, showAddProduct, clearCart, searchResults, selectedSearchIndex, selectedCartIndex, selectedPaymentIndex, paymentMethod, paymentMethodsOrder, incrementQuantity, decrementQuantity, removeItem, setPaymentMethod]);
 
-  // Manejar escaneo
+  // Manejar escaneo o búsqueda
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault();
-    const barcode = searchQuery.trim();
-    if (barcode) {
-      await scanBarcode(barcode);
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    // Primero intentar buscar por código de barras exacto
+    const barcodeResult = await window.api.products.getByBarcode(query) as {
+      success: boolean;
+      data?: Product | Product[];
+      notFound?: boolean;
+      multiple?: boolean;
+    };
+
+    if (barcodeResult.success && barcodeResult.data) {
+      // Si hay múltiples productos con el mismo código, mostrar selector
+      if (barcodeResult.multiple && Array.isArray(barcodeResult.data)) {
+        setSearchResults(barcodeResult.data);
+        setShowSearch(true);
+      } else {
+        // Producto único por código, agregar directamente
+        const product = barcodeResult.data as Product;
+        addItem(product);
+      }
       setSearchQuery('');
-      // Mantener focus en el input después de escanear
+      scanInputRef.current?.focus();
+      return;
+    }
+
+    // Si no se encontró por código, buscar por nombre
+    const nameResults = await searchProducts(query);
+    if (nameResults.length > 0) {
+      // Mostrar resultados en el modal de búsqueda
+      setSearchResults(nameResults);
+      setShowSearch(true);
+      // No limpiar searchQuery para que el usuario vea qué buscó
+    } else {
+      // No se encontró nada
+      await scanBarcode(query); // Esto mostrará el error y opción de agregar
+      setSearchQuery('');
       scanInputRef.current?.focus();
     }
   };
@@ -260,6 +372,7 @@ export default function POSPage() {
   const handleSearchChange = useCallback(
     async (query: string) => {
       setSearchQuery(query);
+      setSelectedSearchIndex(-1); // Reset al buscar
       if (query.length >= 2) {
         const results = await searchProducts(query);
         setSearchResults(results);
@@ -276,6 +389,7 @@ export default function POSPage() {
     setShowSearch(false);
     setSearchQuery('');
     setSearchResults([]);
+    setSelectedSearchIndex(-1);
   };
 
   // Calcular recargos por transferencia
@@ -475,10 +589,15 @@ export default function POSPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <div
                   key={item.product.id}
-                  className="card flex items-center gap-4 animate-enter"
+                  className={`card flex items-center gap-4 animate-enter cursor-pointer transition-all ${
+                    selectedCartIndex === index 
+                      ? 'ring-2 ring-primary-400 bg-primary-400/10' 
+                      : 'hover:bg-kiosko-bg'
+                  }`}
+                  onClick={() => setSelectedCartIndex(index)}
                 >
                   {/* Info del producto */}
                   <div className="flex-1 min-w-0">
@@ -597,10 +716,15 @@ export default function POSPage() {
 
         {/* Atajos de teclado */}
         <div className="p-3 border-t border-kiosko-border text-xs text-kiosko-muted">
-          <div className="flex justify-between">
+          <div className="flex justify-between mb-1">
             <span>F2 Cobrar</span>
             <span>F4 Buscar</span>
             <span>F12 Cancelar</span>
+          </div>
+          <div className="flex justify-between">
+            <span>↑↓ Navegar</span>
+            <span>+/- Cantidad</span>
+            <span>Del Eliminar</span>
           </div>
         </div>
       </div>
@@ -629,11 +753,16 @@ export default function POSPage() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {searchResults.map((product) => (
+                  {searchResults.map((product, index) => (
                     <button
                       key={product.id}
                       onClick={() => handleSelectProduct(product)}
-                      className="w-full card flex items-center gap-4 hover:bg-kiosko-bg transition-colors text-left"
+                      onMouseEnter={() => setSelectedSearchIndex(index)}
+                      className={`w-full card flex items-center gap-4 transition-all text-left ${
+                        selectedSearchIndex === index
+                          ? 'ring-2 ring-primary-400 bg-primary-400/10'
+                          : 'hover:bg-kiosko-bg'
+                      }`}
                     >
                       <div className="flex-1">
                         <p className="font-medium">{product.name}</p>
@@ -662,12 +791,17 @@ export default function POSPage() {
               )}
             </div>
 
-            <button
-              onClick={() => setShowSearch(false)}
-              className="btn-secondary w-full mt-4"
-            >
-              Cerrar (Esc)
-            </button>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setShowSearch(false)}
+                className="btn-secondary flex-1"
+              >
+                Cerrar (Esc)
+              </button>
+            </div>
+            <p className="text-xs text-kiosko-muted text-center mt-2">
+              ↑↓ Navegar • Enter Seleccionar
+            </p>
           </div>
         </div>
       )}
@@ -713,11 +847,12 @@ export default function POSPage() {
 
             {/* Métodos de pago */}
             <div className="grid grid-cols-3 gap-3 mb-6">
-              {paymentMethods.map(({ method, icon: Icon, label }) => (
+              {paymentMethods.map(({ method, icon: Icon, label }, index) => (
                 <button
                   key={method}
                   onClick={() => {
                     setPaymentMethod(method);
+                    setSelectedPaymentIndex(index);
                     if (method === 'CASH') {
                       setAmountPaid(total);
                     }
@@ -728,7 +863,7 @@ export default function POSPage() {
                   }}
                   className={`p-4 rounded-xl border-2 transition-all ${
                     paymentMethod === method
-                      ? 'border-primary-500 bg-primary-500/20'
+                      ? 'border-primary-500 bg-primary-500/20 ring-2 ring-primary-400'
                       : 'border-kiosko-border hover:border-primary-500/50'
                   }`}
                 >
@@ -1138,6 +1273,67 @@ export default function POSPage() {
             <div className="flex gap-3 pt-4 mt-4 border-t border-kiosko-border">
               <button
                 onClick={() => setShowCustomerModal(false)}
+                className="btn-secondary flex-1"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal selector de productos con mismo código */}
+      {multipleProducts && multipleProducts.length > 0 && (
+        <div className="modal-overlay" onClick={clearMultipleProducts}>
+          <div className="modal-content max-w-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-2">Seleccionar Producto</h2>
+            <p className="text-kiosko-muted mb-4">
+              Se encontraron {multipleProducts.length} productos con el mismo código de barras:
+            </p>
+            
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {multipleProducts.map((product) => (
+                <button
+                  key={product.id}
+                  onClick={() => {
+                    addItem(product);
+                    clearMultipleProducts();
+                    scanInputRef.current?.focus();
+                  }}
+                  className="w-full p-4 rounded-lg border border-kiosko-border hover:border-primary-400 hover:bg-primary-400/10 transition-all text-left flex items-center justify-between gap-4"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-lg truncate">{product.name}</p>
+                    <div className="flex gap-4 text-sm text-kiosko-muted">
+                      <span className="font-mono">{product.barcode}</span>
+                      {product.category && (
+                        <span
+                          className="px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: `${product.category.color}20`,
+                            color: product.category.color,
+                          }}
+                        >
+                          {product.category.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-primary-400 font-price">
+                      {formatPrice(product.price)}
+                    </p>
+                    <p className={`text-sm ${product.stock <= product.minStock ? 'text-stock-critical' : 'text-kiosko-muted'}`}>
+                      Stock: {product.stock}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3 pt-4 mt-4 border-t border-kiosko-border">
+              <button
+                onClick={clearMultipleProducts}
                 className="btn-secondary flex-1"
               >
                 Cancelar

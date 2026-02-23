@@ -1,5 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
+import UpdateNotification from '../UpdateNotification';
 import {
   FiShoppingCart,
   FiPackage,
@@ -14,6 +16,7 @@ import {
 } from 'react-icons/fi';
 
 export default function Layout() {
+  const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
@@ -23,20 +26,24 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const navItems = [
-    { to: '/pos', icon: FiShoppingCart, label: 'Ventas', shortcut: 'F1' },
-    { to: '/products', icon: FiPackage, label: 'Productos', shortcut: 'F2' },
-    { to: '/categories', icon: FiGrid, label: 'Categorías', shortcut: 'F3' },
-    { to: '/customers', icon: FiUserCheck, label: 'Clientes', shortcut: 'F4' },
-    { to: '/stock', icon: FiBox, label: 'Stock', shortcut: 'F5' },
-    { to: '/cash', icon: FiDollarSign, label: 'Caja', shortcut: 'F6' },
+  // Items accesibles para todos (cajeros y admin)
+  const cashierItems = [
+    { to: '/pos', icon: FiShoppingCart, label: t('nav.sales'), shortcut: 'F1' },
+    { to: '/customers', icon: FiUserCheck, label: t('nav.customers'), shortcut: 'F2' },
+    { to: '/cash', icon: FiDollarSign, label: t('nav.cashRegister'), shortcut: 'F3' },
   ];
 
+  // Items solo para administradores
   const adminItems = [
-    { to: '/reports', icon: FiBarChart2, label: 'Reportes', shortcut: 'F7' },
-    { to: '/users', icon: FiUsers, label: 'Usuarios', shortcut: 'F8' },
-    { to: '/settings', icon: FiSettings, label: 'Config', shortcut: 'F9' },
+    { to: '/products', icon: FiPackage, label: t('nav.products'), shortcut: 'F4' },
+    { to: '/categories', icon: FiGrid, label: t('nav.categories'), shortcut: 'F5' },
+    { to: '/stock', icon: FiBox, label: t('nav.stock'), shortcut: 'F6' },
+    { to: '/reports', icon: FiBarChart2, label: t('nav.reports'), shortcut: 'F7' },
+    { to: '/users', icon: FiUsers, label: t('nav.users'), shortcut: 'F8' },
+    { to: '/settings', icon: FiSettings, label: t('nav.settings'), shortcut: 'F9' },
   ];
+
+  const isCashier = user?.role === 'CASHIER';
 
   return (
     <div className="flex h-screen bg-kiosko-bg">
@@ -48,29 +55,38 @@ export default function Layout() {
         </div>
 
         {/* Navegación principal */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
+        <nav className={`flex-1 p-3 overflow-y-auto ${isCashier ? 'flex flex-col justify-center space-y-3' : 'space-y-1'}`}>
+          {/* Items para todos los usuarios */}
+          {cashierItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `nav-link ${isActive ? 'active' : ''}`
+                isCashier
+                  ? `flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 ${
+                      isActive
+                        ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30'
+                        : 'bg-kiosko-bg hover:bg-primary-600/20 text-kiosko-text'
+                    }`
+                  : `nav-link ${isActive ? 'active' : ''}`
               }
             >
-              <item.icon size={20} />
-              <span className="flex-1">{item.label}</span>
-              <kbd className="text-xs text-kiosko-muted bg-kiosko-bg px-1.5 py-0.5 rounded">
+              <item.icon size={isCashier ? 28 : 20} />
+              <span className={`flex-1 ${isCashier ? 'text-lg font-medium' : ''}`}>{item.label}</span>
+              <kbd className={`text-kiosko-muted bg-kiosko-bg/50 rounded ${
+                isCashier ? 'text-sm px-2 py-1' : 'text-xs px-1.5 py-0.5'
+              }`}>
                 {item.shortcut}
               </kbd>
             </NavLink>
           ))}
 
-          {/* Separador para admin */}
+          {/* Items solo para administradores */}
           {user?.role === 'ADMIN' && (
             <>
               <div className="border-t border-kiosko-border my-3" />
               <p className="text-xs text-kiosko-muted px-4 py-2 uppercase tracking-wider">
-                Administración
+                {t('nav.administration')}
               </p>
               {adminItems.map((item) => (
                 <NavLink
@@ -100,7 +116,7 @@ export default function Layout() {
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{user?.name}</p>
               <p className="text-xs text-kiosko-muted">
-                {user?.role === 'ADMIN' ? 'Administrador' : 'Cajero'}
+                {user?.role === 'ADMIN' ? t('roles.admin') : t('roles.cashier')}
               </p>
             </div>
           </div>
@@ -109,7 +125,7 @@ export default function Layout() {
             className="nav-link w-full mt-2 text-stock-critical hover:text-red-400 hover:bg-red-500/10"
           >
             <FiLogOut size={20} />
-            <span>Cerrar sesión</span>
+            <span>{t('nav.logout')}</span>
           </button>
         </div>
       </aside>
@@ -118,6 +134,9 @@ export default function Layout() {
       <main className="flex-1 overflow-hidden">
         <Outlet />
       </main>
+
+      {/* Notificaciones de actualización */}
+      <UpdateNotification />
     </div>
   );
 }

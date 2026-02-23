@@ -65,19 +65,40 @@ export default function App() {
         {/* Punto de Venta - acceso para todos */}
         <Route path="pos" element={<POSPage />} />
         
-        {/* Productos (incluye carga de stock en pestaña) */}
-        <Route path="products" element={<ProductsPage />} />
+        {/* Productos - solo admin */}
+        <Route
+          path="products"
+          element={
+            <AdminRoute>
+              <ProductsPage />
+            </AdminRoute>
+          }
+        />
         
         {/* Redirigir antigua ruta de carga de stock */}
         <Route path="stock/load" element={<Navigate to="/products" replace />} />
         
-        {/* Categorías */}
-        <Route path="categories" element={<CategoriesPage />} />
+        {/* Categorías - solo admin */}
+        <Route
+          path="categories"
+          element={
+            <AdminRoute>
+              <CategoriesPage />
+            </AdminRoute>
+          }
+        />
         
-        {/* Control de Stock */}
-        <Route path="stock" element={<StockPage />} />
+        {/* Control de Stock - solo admin */}
+        <Route
+          path="stock"
+          element={
+            <AdminRoute>
+              <StockPage />
+            </AdminRoute>
+          }
+        />
         
-        {/* Caja Registradora */}
+        {/* Caja Registradora - acceso para todos */}
         <Route path="cash" element={<CashRegisterPage />} />
         
         {/* Clientes / Fiado */}

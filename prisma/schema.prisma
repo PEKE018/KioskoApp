@@ -62,7 +62,7 @@ model Category {
 
 model Product {
   id          String   @id @default(uuid())
-  barcode     String   @unique
+  barcode     String   // Permite duplicados - productos diferentes con mismo código
   name        String
   description String?
   
@@ -70,6 +70,7 @@ model Product {
   price       Float    // Precio de venta
   cost        Float    @default(0) // Costo de compra
   isCigarette Boolean  @default(false) // Marcar como cigarrillo para recargo especial
+  isCombo     Boolean  @default(false) // Es un combo/promoción
   
   // Stock
   stock       Int      @default(0)
@@ -89,13 +90,35 @@ model Product {
   updatedAt   DateTime @updatedAt
 
   // Relaciones
-  saleItems      SaleItem[]
-  stockMovements StockMovement[]
+  saleItems        SaleItem[]
+  stockMovements   StockMovement[]
+  comboComponents  ComboComponent[] @relation("ComboToComponents") // Componentes si es combo
+  partOfCombos     ComboComponent[] @relation("ComponentToCombos") // Combos donde aparece
 
   @@index([barcode])
   @@index([categoryId])
   @@index([name])
   @@index([stock]) // Para consultas de stock bajo
+  @@index([isCombo])
+}
+
+// ============================================
+// COMPONENTES DE COMBOS/PROMOCIONES
+// ============================================
+
+model ComboComponent {
+  id          String   @id @default(uuid())
+  comboId     String   // El producto combo
+  componentId String   // El producto componente
+  quantity    Float    @default(1) // Cantidad de este componente en el combo
+  createdAt   DateTime @default(now())
+
+  // Relaciones
+  combo       Product  @relation("ComboToComponents", fields: [comboId], references: [id], onDelete: Cascade)
+  component   Product  @relation("ComponentToCombos", fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@index([comboId])
+  @@index([componentId])
 }
 
 // ============================================
@@ -298,6 +321,10 @@ model AppConfig {
   // Configuración de pagos
   transferFeePercent Float @default(0) // Porcentaje adicional para transferencias
   cigaretteTransferFeePercent Float @default(0) // Porcentaje adicional para cigarrillos en transferencia
+  
+  // Opciones de productos
+  showCostPrice   Boolean @default(true)  // Mostrar campo de precio de costo
+  showUnitsPerBox Boolean @default(true)  // Mostrar campo de unidades por caja
   
   // Configuración general
   defaultMinStock Int     @default(5)

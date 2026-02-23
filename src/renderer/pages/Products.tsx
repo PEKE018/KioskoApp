@@ -15,13 +15,25 @@ import {
   FiAlertCircle,
   FiTruck,
   FiList,
+  FiZap,
 } from 'react-icons/fi';
 
-type TabType = 'gestion' | 'stock';
+type TabType = 'gestion' | 'stock' | 'rapida';
 
 // Tipo para las cantidades a cargar
 interface LoadQuantities {
   [productId: string]: number;
+}
+
+// Tipo para productos en carga rápida
+interface QuickProduct {
+  tempId: string;
+  name: string;
+  price: number;
+  cost: number;
+  stock: number;
+  autoBarcode: boolean;
+  barcode: string;
 }
 
 export default function ProductsPage() {
@@ -40,11 +52,16 @@ export default function ProductsPage() {
     price: '',
     cost: '',
     isCigarette: false,
+    isCombo: false,
     stock: '',
     minStock: '5',
     unitsPerBox: '1',
     categoryId: '',
   });
+
+  // Estado para componentes de combo
+  const [comboComponents, setComboComponents] = useState<{ productId: string; quantity: number; name?: string }[]>([]);
+  const [simpleProducts, setSimpleProducts] = useState<Product[]>([]);
 
   // Estados para Carga de Stock
   const [loadQuantities, setLoadQuantities] = useState<LoadQuantities>({});
@@ -53,7 +70,21 @@ export default function ProductsPage() {
   const [isLoadingStock, setIsLoadingStock] = useState(false);
   const [stockMessage, setStockMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Estados para Carga Rápida
+  const [quickCategory, setQuickCategory] = useState<string>('');
+  const [quickProducts, setQuickProducts] = useState<QuickProduct[]>([]);
+  const [quickForm, setQuickForm] = useState({ name: '', price: '', cost: '', stock: '1', barcode: '', autoBarcode: false });
+  const [isCreatingQuick, setIsCreatingQuick] = useState(false);
+  const [quickMessage, setQuickMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const quickNameRef = useRef<HTMLInputElement>(null);
+
   const stockSearchRef = useRef<HTMLInputElement>(null);
+
+  // Estado para configuración de campos visibles
+  const [productSettings, setProductSettings] = useState({
+    showCostPrice: true,
+    showUnitsPerBox: true,
+  });
 
   const {
     products,
@@ -75,6 +106,24 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
+    // Cargar configuración de campos visibles
+    const loadSettings = async () => {
+      try {
+        const result = await window.api.settings.get() as {
+          success: boolean;
+          data?: { showCostPrice?: boolean; showUnitsPerBox?: boolean };
+        };
+        if (result.success && result.data) {
+          setProductSettings({
+            showCostPrice: result.data.showCostPrice !== false,
+            showUnitsPerBox: result.data.showUnitsPerBox !== false,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading product settings:', error);
+      }
+    };
+    loadSettings();
   }, [fetchProducts, fetchCategories]);
 
   useEffect(() => {
@@ -96,8 +145,33 @@ export default function ProductsPage() {
     }
   }, [activeTab]);
 
+  // Limpiar mensaje de carga rápida después de un tiempo
+  useEffect(() => {
+    if (quickMessage) {
+      const timer = setTimeout(() => setQuickMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [quickMessage]);
+
+  // Enfocar nombre cuando hay categoría seleccionada en carga rápida
+  useEffect(() => {
+    if (activeTab === 'rapida' && quickCategory) {
+      setTimeout(() => quickNameRef.current?.focus(), 100);
+    }
+  }, [activeTab, quickCategory]);
+
   // --- Funciones de Gestión ---
-  const openModal = (product?: Product) => {
+  const openModal = async (product?: Product) => {
+    // Cargar productos simples para seleccionar como componentes
+    try {
+      const result = await window.api.products.getSimple() as { success: boolean; data?: Product[] };
+      if (result.success && result.data) {
+        setSimpleProducts(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading simple products:', error);
+    }
+
     if (product) {
       setEditingProduct(product);
       setAutoGenerateBarcode(false);
@@ -108,14 +182,40 @@ export default function ProductsPage() {
         price: product.price.toString(),
         cost: product.cost?.toString() || '',
         isCigarette: product.isCigarette || false,
+        isCombo: product.isCombo || false,
         stock: product.stock.toString(),
         minStock: product.minStock.toString(),
         unitsPerBox: product.unitsPerBox.toString(),
         categoryId: product.categoryId || '',
       });
+      
+      // Cargar componentes si es combo
+      if (product.isCombo) {
+        try {
+          const compResult = await window.api.products.getComboComponents(product.id) as {
+            success: boolean;
+            data?: Array<{ componentId: string; quantity: number; component: { id: string; name: string } }>;
+          };
+          if (compResult.success && compResult.data) {
+            setComboComponents(
+              compResult.data.map((c) => ({
+                productId: c.componentId,
+                quantity: c.quantity,
+                name: c.component.name,
+              }))
+            );
+          }
+        } catch (error) {
+          console.error('Error loading combo components:', error);
+          setComboComponents([]);
+        }
+      } else {
+        setComboComponents([]);
+      }
     } else {
       setEditingProduct(null);
       setAutoGenerateBarcode(false);
+      setComboComponents([]);
       setFormData({
         barcode: '',
         name: '',
@@ -123,6 +223,7 @@ export default function ProductsPage() {
         price: '',
         cost: '',
         isCigarette: false,
+        isCombo: false,
         stock: '0',
         minStock: '5',
         unitsPerBox: '1',
@@ -135,6 +236,12 @@ export default function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validar que un combo tenga al menos un componente
+    if (formData.isCombo && comboComponents.length === 0) {
+      alert('Un combo debe tener al menos un producto componente');
+      return;
+    }
+
     const productData = {
       barcode: autoGenerateBarcode ? undefined : formData.barcode,
       name: formData.name,
@@ -142,10 +249,12 @@ export default function ProductsPage() {
       price: parseFloat(formData.price),
       cost: formData.cost ? parseFloat(formData.cost) : 0,
       isCigarette: formData.isCigarette,
-      stock: parseInt(formData.stock) || 0,
-      minStock: parseInt(formData.minStock) || 5,
+      isCombo: formData.isCombo,
+      stock: formData.isCombo ? 0 : (parseInt(formData.stock) || 0), // Combos no tienen stock propio
+      minStock: formData.isCombo ? 0 : (parseInt(formData.minStock) || 5),
       unitsPerBox: parseInt(formData.unitsPerBox) || 1,
       categoryId: formData.categoryId || undefined,
+      components: formData.isCombo ? comboComponents.map(c => ({ productId: c.productId, quantity: c.quantity })) : undefined,
     };
 
     if (editingProduct) {
@@ -155,6 +264,7 @@ export default function ProductsPage() {
     }
 
     setShowModal(false);
+    setComboComponents([]);
   };
 
   const handleDelete = async (product: Product) => {
@@ -260,6 +370,77 @@ export default function ProductsPage() {
     setIsLoadingStock(false);
   };
 
+  // --- Funciones de Carga Rápida ---
+  
+  const addQuickProduct = () => {
+    if (!quickForm.name.trim() || !quickForm.price) return;
+    
+    const newProduct: QuickProduct = {
+      tempId: Date.now().toString(),
+      name: quickForm.name.trim(),
+      price: parseFloat(quickForm.price),
+      cost: quickForm.cost ? parseFloat(quickForm.cost) : 0,
+      stock: parseInt(quickForm.stock) || 1,
+      autoBarcode: quickForm.autoBarcode,
+      barcode: quickForm.barcode.trim(),
+    };
+    
+    setQuickProducts(prev => [...prev, newProduct]);
+    setQuickForm({ name: '', price: '', cost: '', stock: '1', barcode: '', autoBarcode: false });
+    quickNameRef.current?.focus();
+  };
+
+  const removeQuickProduct = (tempId: string) => {
+    setQuickProducts(prev => prev.filter(p => p.tempId !== tempId));
+  };
+
+  const handleCreateAllQuickProducts = async () => {
+    if (quickProducts.length === 0 || !quickCategory) return;
+    
+    setIsCreatingQuick(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const qp of quickProducts) {
+      try {
+        const productData = {
+          barcode: qp.autoBarcode ? undefined : qp.barcode,
+          name: qp.name,
+          price: qp.price,
+          cost: qp.cost,
+          stock: qp.stock,
+          minStock: 5,
+          unitsPerBox: 1,
+          categoryId: quickCategory,
+        };
+
+        await createProduct(productData);
+        successCount++;
+      } catch (error) {
+        errorCount++;
+      }
+    }
+
+    await fetchProducts();
+    
+    if (errorCount === 0) {
+      setQuickMessage({
+        type: 'success',
+        text: `${successCount} productos creados en la categoría`,
+      });
+      setQuickProducts([]);
+    } else {
+      setQuickMessage({
+        type: 'error',
+        text: `Creados: ${successCount}, Errores: ${errorCount}`,
+      });
+    }
+
+    setIsCreatingQuick(false);
+  };
+
+  const selectedQuickCategory = categories.find(c => c.id === quickCategory);
+
   // --- Helpers ---
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-AR', {
@@ -305,6 +486,17 @@ export default function ProductsPage() {
               {isLoadingStock ? 'Cargando...' : `Confirmar Carga (${totalUnits} uds)`}
             </button>
           )}
+
+          {activeTab === 'rapida' && quickProducts.length > 0 && (
+            <button
+              onClick={handleCreateAllQuickProducts}
+              disabled={isCreatingQuick}
+              className="btn-success flex items-center gap-2"
+            >
+              <FiCheck size={20} />
+              {isCreatingQuick ? 'Creando...' : `Crear ${quickProducts.length} Productos`}
+            </button>
+          )}
         </div>
         
         {/* Pestañas */}
@@ -331,11 +523,22 @@ export default function ProductsPage() {
             <FiTruck size={18} />
             Cargar Stock
           </button>
+          <button
+            onClick={() => setActiveTab('rapida')}
+            className={`px-6 py-3 rounded-t-lg font-medium flex items-center gap-2 transition-colors ${
+              activeTab === 'rapida'
+                ? 'bg-kiosko-bg text-stock-warning border-t border-l border-r border-kiosko-border'
+                : 'text-kiosko-muted hover:text-kiosko-text'
+            }`}
+          >
+            <FiZap size={18} />
+            Carga Rápida
+          </button>
         </div>
       </div>
 
       {/* Contenido según pestaña */}
-      {activeTab === 'gestion' ? (
+      {activeTab === 'gestion' && (
         // ========== PESTAÑA GESTIÓN ==========
         <div className="flex-1 flex flex-col p-6 overflow-hidden">
           {/* Filtros */}
@@ -394,13 +597,25 @@ export default function ProductsPage() {
                 </thead>
                 <tbody>
                   {filteredProducts.map((product) => (
-                    <tr key={product.id}>
+                    <tr key={product.id} className={product.isCombo ? 'bg-primary-600/5' : ''}>
                       <td className="font-mono text-sm">{product.barcode}</td>
                       <td>
-                        <p className="font-medium">{product.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{product.name}</p>
+                          {product.isCombo && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-primary-600/30 to-amber-600/30 text-primary-300 rounded-full border border-primary-500/30">
+                              🎁 Combo
+                            </span>
+                          )}
+                        </div>
                         {product.description && (
                           <p className="text-sm text-kiosko-muted truncate max-w-xs">
                             {product.description}
+                          </p>
+                        )}
+                        {product.isCombo && product.comboComponents && product.comboComponents.length > 0 && (
+                          <p className="text-xs text-kiosko-muted mt-1">
+                            Contiene: {product.comboComponents.map(c => `${c.quantity}x ${c.component.name}`).join(', ')}
                           </p>
                         )}
                       </td>
@@ -422,8 +637,20 @@ export default function ProductsPage() {
                       <td className="text-right font-price font-medium">
                         {formatPrice(product.price)}
                       </td>
-                      <td className="text-center font-medium">{product.stock}</td>
-                      <td className="text-center">{getStockBadge(product)}</td>
+                      <td className="text-center font-medium">
+                        {product.isCombo ? (
+                          <span className="text-xs text-kiosko-muted">-</span>
+                        ) : (
+                          product.stock
+                        )}
+                      </td>
+                      <td className="text-center">
+                        {product.isCombo ? (
+                          <span className="text-xs text-primary-400">Combo</span>
+                        ) : (
+                          getStockBadge(product)
+                        )}
+                      </td>
                       <td>
                         <div className="flex justify-end gap-2">
                           <button
@@ -447,7 +674,9 @@ export default function ProductsPage() {
             )}
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'stock' && (
         // ========== PESTAÑA CARGAR STOCK ==========
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Mensaje de feedback */}
@@ -657,6 +886,251 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {activeTab === 'rapida' && (
+        // ========== PESTAÑA CARGA RÁPIDA ==========
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mensaje de feedback */}
+          {quickMessage && (
+            <div
+              className={`mx-6 mt-4 p-4 rounded-lg flex items-center gap-3 ${
+                quickMessage.type === 'success'
+                  ? 'bg-stock-ok/20 text-stock-ok border border-stock-ok/30'
+                  : 'bg-stock-critical/20 text-stock-critical border border-stock-critical/30'
+              }`}
+            >
+              {quickMessage.type === 'success' ? <FiCheck size={24} /> : <FiX size={24} />}
+              <span className="text-lg font-medium">{quickMessage.text}</span>
+            </div>
+          )}
+
+          <div className="flex-1 p-6 overflow-auto">
+            {/* Selector de Categoría */}
+            {!quickCategory ? (
+              <div className="max-w-2xl mx-auto">
+                <div className="text-center mb-8">
+                  <FiZap size={48} className="mx-auto mb-4 text-stock-warning" />
+                  <h2 className="text-2xl font-bold mb-2">Carga Rápida de Productos</h2>
+                  <p className="text-kiosko-muted">
+                    Selecciona una categoría para agregar múltiples productos de forma rápida
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setQuickCategory(cat.id)}
+                      className="card p-6 hover:ring-2 hover:ring-primary-400 transition-all text-center"
+                      style={{ borderLeft: `4px solid ${cat.color}` }}
+                    >
+                      <span className="text-lg font-bold">{cat.name}</span>
+                      <p className="text-sm text-kiosko-muted mt-1">
+                        {products.filter(p => p.categoryId === cat.id).length} productos
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-4xl mx-auto">
+                {/* Header con categoría seleccionada */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => {
+                        setQuickCategory('');
+                        setQuickProducts([]);
+                        setQuickForm({ name: '', price: '', cost: '', stock: '1', barcode: '', autoBarcode: false });
+                      }}
+                      className="btn-secondary"
+                    >
+                      ← Cambiar Categoría
+                    </button>
+                    <div
+                      className="px-4 py-2 rounded-lg font-bold text-lg"
+                      style={{
+                        backgroundColor: `${selectedQuickCategory?.color}20`,
+                        color: selectedQuickCategory?.color,
+                      }}
+                    >
+                      {selectedQuickCategory?.name}
+                    </div>
+                  </div>
+                  {quickProducts.length > 0 && (
+                    <span className="text-kiosko-muted">
+                      {quickProducts.length} producto{quickProducts.length > 1 ? 's' : ''} pendiente{quickProducts.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+
+                {/* Formulario rápido */}
+                <div className="card mb-6">
+                  <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <FiPlus className="text-stock-ok" />
+                    Agregar Producto
+                  </h3>
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-4">
+                      <label className="block text-sm text-kiosko-muted mb-1">Nombre *</label>
+                      <input
+                        ref={quickNameRef}
+                        type="text"
+                        value={quickForm.name}
+                        onChange={(e) => setQuickForm(f => ({ ...f, name: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && quickForm.name && quickForm.price) {
+                            e.preventDefault();
+                            addQuickProduct();
+                          }
+                        }}
+                        placeholder="Nombre del producto"
+                        className="input w-full"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm text-kiosko-muted mb-1">Precio *</label>
+                      <input
+                        type="number"
+                        value={quickForm.price}
+                        onChange={(e) => setQuickForm(f => ({ ...f, price: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && quickForm.name && quickForm.price) {
+                            e.preventDefault();
+                            addQuickProduct();
+                          }
+                        }}
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                        className="input w-full"
+                      />
+                    </div>
+                    {productSettings.showCostPrice && (
+                      <div className="col-span-2">
+                        <label className="block text-sm text-kiosko-muted mb-1">Costo</label>
+                        <input
+                          type="number"
+                          value={quickForm.cost}
+                          onChange={(e) => setQuickForm(f => ({ ...f, cost: e.target.value }))}
+                          placeholder="0.00"
+                          step="0.01"
+                          min="0"
+                          className="input w-full"
+                        />
+                      </div>
+                    )}
+                    <div className="col-span-1">
+                      <label className="block text-sm text-kiosko-muted mb-1">Stock</label>
+                      <input
+                        type="number"
+                        value={quickForm.stock}
+                        onChange={(e) => setQuickForm(f => ({ ...f, stock: e.target.value }))}
+                        min="0"
+                        className="input w-full"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm text-kiosko-muted mb-1">
+                        {quickForm.autoBarcode ? 'Código (auto)' : 'Código'}
+                      </label>
+                      <input
+                        type="text"
+                        value={quickForm.barcode}
+                        onChange={(e) => setQuickForm(f => ({ ...f, barcode: e.target.value }))}
+                        placeholder={quickForm.autoBarcode ? 'Automático' : 'Código'}
+                        disabled={quickForm.autoBarcode}
+                        className={`input w-full font-mono ${quickForm.autoBarcode ? 'opacity-50' : ''}`}
+                      />
+                      <label className="flex items-center gap-1 mt-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={quickForm.autoBarcode}
+                          onChange={(e) => setQuickForm(f => ({ ...f, autoBarcode: e.target.checked, barcode: '' }))}
+                          className="w-3 h-3"
+                        />
+                        <span className="text-xs text-kiosko-muted">Auto</span>
+                      </label>
+                    </div>
+                    <div className="col-span-1 flex items-end">
+                      <button
+                        onClick={addQuickProduct}
+                        disabled={!quickForm.name.trim() || !quickForm.price}
+                        className="btn-primary w-full h-10 flex items-center justify-center"
+                      >
+                        <FiPlus size={20} />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-kiosko-muted mt-2">
+                    Presiona Enter para agregar rápidamente
+                  </p>
+                </div>
+
+                {/* Lista de productos pendientes */}
+                {quickProducts.length > 0 && (
+                  <div className="card">
+                    <h3 className="font-bold text-lg mb-4">
+                      Productos a Crear ({quickProducts.length})
+                    </h3>
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {quickProducts.map((qp, index) => (
+                        <div
+                          key={qp.tempId}
+                          className="flex items-center justify-between p-3 bg-kiosko-bg rounded-lg"
+                        >
+                          <div className="flex items-center gap-4">
+                            <span className="text-kiosko-muted w-6">#{index + 1}</span>
+                            <span className="font-medium">{qp.name}</span>
+                            <span className="text-sm text-kiosko-muted font-mono">
+                              {qp.autoBarcode ? '(auto)' : qp.barcode}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <span className="font-price">{formatPrice(qp.price)}</span>
+                            <span className="text-kiosko-muted">Stock: {qp.stock}</span>
+                            <button
+                              onClick={() => removeQuickProduct(qp.tempId)}
+                              className="p-1 text-stock-critical hover:bg-stock-critical/20 rounded"
+                            >
+                              <FiX size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-kiosko-border">
+                      <button
+                        onClick={() => setQuickProducts([])}
+                        className="btn-secondary"
+                      >
+                        Limpiar Lista
+                      </button>
+                      <button
+                        onClick={handleCreateAllQuickProducts}
+                        disabled={isCreatingQuick}
+                        className="btn-success px-8 py-3 flex items-center gap-2"
+                      >
+                        <FiCheck size={20} />
+                        {isCreatingQuick ? 'Creando...' : `Crear ${quickProducts.length} Productos`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {quickProducts.length === 0 && (
+                  <div className="text-center text-kiosko-muted py-12">
+                    <FiPackage size={48} className="mx-auto mb-4 opacity-50" />
+                    <p>Agrega productos usando el formulario de arriba</p>
+                    <p className="text-sm">Todos se crearán en la categoría seleccionada</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Modal de producto */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
@@ -750,7 +1224,7 @@ export default function ProductsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className={`grid gap-4 ${productSettings.showCostPrice ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <div>
                   <label className="block text-sm font-medium text-kiosko-muted mb-1">
                     Precio de venta *
@@ -767,21 +1241,23 @@ export default function ProductsPage() {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
-                    Costo
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.cost}
-                    onChange={(e) =>
-                      setFormData((d) => ({ ...d, cost: e.target.value }))
-                    }
-                    className="input"
-                    step="0.01"
-                    min="0"
-                  />
-                </div>
+                {productSettings.showCostPrice && (
+                  <div>
+                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                      Costo
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.cost}
+                      onChange={(e) =>
+                        setFormData((d) => ({ ...d, cost: e.target.value }))
+                      }
+                      className="input"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-3 p-3 bg-kiosko-bg rounded-lg border border-kiosko-border">
@@ -793,56 +1269,191 @@ export default function ProductsPage() {
                     setFormData((d) => ({ ...d, isCigarette: e.target.checked }))
                   }
                   className="w-5 h-5 rounded border-kiosko-border text-primary-500 focus:ring-primary-500"
+                  disabled={formData.isCombo}
                 />
-                <label htmlFor="isCigarette" className="text-sm font-medium cursor-pointer">
+                <label htmlFor="isCigarette" className={`text-sm font-medium cursor-pointer ${formData.isCombo ? 'text-kiosko-muted opacity-50' : ''}`}>
                   🚬 Es cigarrillo (aplica recargo especial en transferencia)
                 </label>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
-                    Stock actual
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.stock}
-                    onChange={(e) =>
-                      setFormData((d) => ({ ...d, stock: e.target.value }))
+              {/* Checkbox para Combo/Promoción */}
+              <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary-600/20 to-amber-600/20 rounded-lg border border-primary-500/30">
+                <input
+                  type="checkbox"
+                  id="isCombo"
+                  checked={formData.isCombo}
+                  onChange={(e) => {
+                    setFormData((d) => ({ 
+                      ...d, 
+                      isCombo: e.target.checked,
+                      isCigarette: e.target.checked ? false : d.isCigarette,
+                    }));
+                    if (!e.target.checked) {
+                      setComboComponents([]);
                     }
-                    className="input"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
-                    Stock mínimo
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.minStock}
-                    onChange={(e) =>
-                      setFormData((d) => ({ ...d, minStock: e.target.value }))
-                    }
-                    className="input"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
-                    Unidades/caja
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.unitsPerBox}
-                    onChange={(e) =>
-                      setFormData((d) => ({ ...d, unitsPerBox: e.target.value }))
-                    }
-                    className="input"
-                    min="1"
-                  />
-                </div>
+                  }}
+                  className="w-5 h-5 rounded border-kiosko-border text-primary-500 focus:ring-primary-500"
+                />
+                <label htmlFor="isCombo" className="text-sm font-medium cursor-pointer">
+                  🎁 Es Combo/Promoción (al vender, descuenta stock de sus componentes)
+                </label>
               </div>
+
+              {/* Sección de componentes del combo */}
+              {formData.isCombo && (
+                <div className="p-4 bg-kiosko-bg rounded-lg border border-kiosko-border space-y-3">
+                  <h4 className="font-medium text-primary-400">Componentes del Combo</h4>
+                  <p className="text-xs text-kiosko-muted">
+                    Selecciona los productos que componen este combo. Al vender, se descontará el stock de cada componente.
+                  </p>
+                  
+                  {/* Lista de componentes agregados */}
+                  {comboComponents.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {comboComponents.map((comp, index) => {
+                        const product = simpleProducts.find(p => p.id === comp.productId);
+                        return (
+                          <div key={index} className="flex items-center gap-2 p-2 bg-kiosko-card rounded border border-kiosko-border">
+                            <span className="flex-1 text-sm truncate">{comp.name || product?.name || 'Producto'}</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setComboComponents(prev => 
+                                    prev.map((c, i) => i === index ? { ...c, quantity: Math.max(0.5, c.quantity - 0.5) } : c)
+                                  );
+                                }}
+                                className="w-6 h-6 flex items-center justify-center bg-kiosko-bg rounded hover:bg-red-500/20"
+                              >
+                                <FiMinus size={12} />
+                              </button>
+                              <input
+                                type="number"
+                                value={comp.quantity}
+                                onChange={(e) => {
+                                  const qty = parseFloat(e.target.value) || 1;
+                                  setComboComponents(prev =>
+                                    prev.map((c, i) => i === index ? { ...c, quantity: qty } : c)
+                                  );
+                                }}
+                                className="w-16 text-center input py-1 text-sm"
+                                step="0.5"
+                                min="0.5"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setComboComponents(prev =>
+                                    prev.map((c, i) => i === index ? { ...c, quantity: c.quantity + 0.5 } : c)
+                                  );
+                                }}
+                                className="w-6 h-6 flex items-center justify-center bg-kiosko-bg rounded hover:bg-green-500/20"
+                              >
+                                <FiPlus size={12} />
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setComboComponents(prev => prev.filter((_, i) => i !== index))}
+                              className="w-6 h-6 flex items-center justify-center text-red-400 hover:bg-red-500/20 rounded"
+                            >
+                              <FiX size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
+                  {/* Selector para agregar componente */}
+                  <div className="flex gap-2">
+                    <select
+                      className="input flex-1"
+                      onChange={(e) => {
+                        const productId = e.target.value;
+                        if (productId && !comboComponents.find(c => c.productId === productId)) {
+                          const product = simpleProducts.find(p => p.id === productId);
+                          setComboComponents(prev => [...prev, { productId, quantity: 1, name: product?.name }]);
+                        }
+                        e.target.value = '';
+                      }}
+                      defaultValue=""
+                    >
+                      <option value="">+ Agregar producto al combo...</option>
+                      {simpleProducts
+                        .filter(p => !comboComponents.find(c => c.productId === p.id))
+                        .map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} (Stock: {p.stock})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  
+                  {comboComponents.length === 0 && (
+                    <p className="text-xs text-amber-400">⚠️ Agrega al menos un producto al combo</p>
+                  )}
+                </div>
+              )}
+
+              {/* Stock - solo para productos simples, no combos */}
+              {!formData.isCombo && (
+                <div className={`grid gap-4 ${productSettings.showUnitsPerBox ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  <div>
+                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                      Stock actual
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.stock}
+                      onChange={(e) =>
+                        setFormData((d) => ({ ...d, stock: e.target.value }))
+                      }
+                      className="input"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                      Stock mínimo
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.minStock}
+                      onChange={(e) =>
+                        setFormData((d) => ({ ...d, minStock: e.target.value }))
+                      }
+                      className="input"
+                      min="0"
+                    />
+                  </div>
+                  {productSettings.showUnitsPerBox && (
+                    <div>
+                      <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                        Unidades/caja
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.unitsPerBox}
+                        onChange={(e) =>
+                          setFormData((d) => ({ ...d, unitsPerBox: e.target.value }))
+                        }
+                        className="input"
+                        min="1"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Info para combos */}
+              {formData.isCombo && (
+                <div className="p-3 bg-primary-600/10 border border-primary-500/30 rounded-lg">
+                  <p className="text-sm text-primary-300">
+                    ℹ️ Los combos no tienen stock propio. El stock se calcula según la disponibilidad de sus componentes.
+                  </p>
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4">
                 <button

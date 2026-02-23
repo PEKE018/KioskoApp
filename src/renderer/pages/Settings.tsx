@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '../i18n';
 import { useAuthStore } from '../stores/authStore';
 import {
   FiDatabase,
@@ -6,6 +8,10 @@ import {
   FiInfo,
   FiSave,
   FiPercent,
+  FiGlobe,
+  FiDownload,
+  FiRefreshCw,
+  FiCheckCircle,
 } from 'react-icons/fi';
 
 interface AppConfig {
@@ -17,11 +23,15 @@ interface AppConfig {
   ticketFooter: string | null;
   transferFeePercent: number;
   cigaretteTransferFeePercent: number;
+  showCostPrice: boolean;
+  showUnitsPerBox: boolean;
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'business' | 'security' | 'about'>('business');
+  const { t, i18n } = useTranslation();
+  const [activeTab, setActiveTab] = useState<'general' | 'business' | 'security' | 'about'>('general');
   const [, setLoading] = useState(true);
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
   const [businessData, setBusinessData] = useState({
     businessName: 'Mi Kiosko',
     businessAddress: '',
@@ -31,6 +41,8 @@ export default function SettingsPage() {
     ticketFooter: '',
     transferFeePercent: 0,
     cigaretteTransferFeePercent: 0,
+    showCostPrice: true,
+    showUnitsPerBox: true,
   });
   const [securityData, setSecurityData] = useState({
     oldPassword: '',
@@ -38,6 +50,12 @@ export default function SettingsPage() {
     confirmPassword: '',
   });
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Estado de actualizaciones
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'>('idle');
+  const [updateInfo, setUpdateInfo] = useState<{ version?: string; releaseNotes?: string } | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  const [currentVersion, setCurrentVersion] = useState<string>('1.0.0');
 
   const user = useAuthStore((state) => state.user);
 
@@ -59,6 +77,8 @@ export default function SettingsPage() {
             ticketFooter: result.data.ticketFooter || '',
             transferFeePercent: result.data.transferFeePercent || 0,
             cigaretteTransferFeePercent: result.data.cigaretteTransferFeePercent || 0,
+            showCostPrice: result.data.showCostPrice !== false,
+            showUnitsPerBox: result.data.showUnitsPerBox !== false,
           });
         }
       } catch (error) {
@@ -68,6 +88,78 @@ export default function SettingsPage() {
       }
     };
     loadSettings();
+  }, []);
+
+  // Cargar versión actual y configurar listeners de actualizaciones
+  useEffect(() => {
+    const loadVersion = async () => {
+      try {
+        const result = await window.api.updater.getCurrentVersion() as { success: boolean; version?: string };
+        if (result.success && result.version) {
+          setCurrentVersion(result.version);
+        }
+      } catch (error) {
+        console.error('Error loading version:', error);
+      }
+    };
+    loadVersion();
+
+    // Listeners para actualizaciones
+    window.api.updater.onUpdateAvailable((info: unknown) => {
+      const updateData = info as { version?: string; releaseNotes?: string };
+      setUpdateStatus('available');
+      setUpdateInfo(updateData);
+    });
+
+    window.api.updater.onDownloadProgress((progress: unknown) => {
+      const progressData = progress as { percent?: number };
+      setUpdateStatus('downloading');
+      setDownloadProgress(progressData.percent || 0);
+    });
+
+    window.api.updater.onUpdateDownloaded((info: unknown) => {
+      const updateData = info as { version?: string; releaseNotes?: string };
+      setUpdateStatus('downloaded');
+      setUpdateInfo(updateData);
+    });
+  }, []);
+
+  // Funciones para actualizaciones
+  const checkForUpdates = useCallback(async () => {
+    setUpdateStatus('checking');
+    try {
+      const result = await window.api.updater.check() as { success: boolean; updateAvailable?: boolean; version?: string; error?: string };
+      if (result.success) {
+        if (!result.updateAvailable) {
+          setUpdateStatus('idle');
+          setMessage({ type: 'success', text: 'Ya tienes la última versión' });
+        }
+      } else {
+        setUpdateStatus('error');
+        setMessage({ type: 'error', text: result.error || 'Error al verificar actualizaciones' });
+      }
+    } catch (error) {
+      setUpdateStatus('error');
+      setMessage({ type: 'error', text: 'Error al conectar con el servidor de actualizaciones' });
+    }
+  }, []);
+
+  const downloadUpdate = useCallback(async () => {
+    setUpdateStatus('downloading');
+    try {
+      await window.api.updater.download();
+    } catch (error) {
+      setUpdateStatus('error');
+      setMessage({ type: 'error', text: 'Error al descargar la actualización' });
+    }
+  }, []);
+
+  const installUpdate = useCallback(async () => {
+    try {
+      await window.api.updater.install();
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error al instalar la actualización' });
+    }
   }, []);
 
   const handleSaveBusiness = async (e: React.FormEvent) => {
@@ -82,6 +174,8 @@ export default function SettingsPage() {
         ticketFooter: businessData.ticketFooter || null,
         transferFeePercent: businessData.transferFeePercent,
         cigaretteTransferFeePercent: businessData.cigaretteTransferFeePercent,
+        showCostPrice: businessData.showCostPrice,
+        showUnitsPerBox: businessData.showUnitsPerBox,
       }) as { success: boolean; error?: string };
 
       if (result.success) {
@@ -99,7 +193,7 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (securityData.newPassword !== securityData.confirmPassword) {
-      setMessage({ type: 'error', text: 'Las contraseñas no coinciden' });
+      setMessage({ type: 'error', text: t('settings.passwordsMismatch') });
       return;
     }
 
@@ -123,17 +217,18 @@ export default function SettingsPage() {
   };
 
   const tabs = [
-    { id: 'business', label: 'Negocio', icon: FiDatabase },
-    { id: 'security', label: 'Seguridad', icon: FiShield },
-    { id: 'about', label: 'Acerca de', icon: FiInfo },
+    { id: 'general', label: t('settings.general'), icon: FiGlobe },
+    { id: 'business', label: t('settings.business'), icon: FiDatabase },
+    { id: 'security', label: t('settings.security'), icon: FiShield },
+    { id: 'about', label: t('settings.about'), icon: FiInfo },
   ];
 
   return (
     <div className="h-full flex flex-col p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Configuración</h1>
-        <p className="text-kiosko-muted">Ajustes del sistema</p>
+        <h1 className="text-2xl font-bold">{t('settings.title')}</h1>
+        <p className="text-kiosko-muted">{t('settings.subtitle')}</p>
       </div>
 
       {/* Mensaje */}
@@ -168,6 +263,52 @@ export default function SettingsPage() {
 
         {/* Contenido */}
         <div className="flex-1 card">
+          {/* Tab General */}
+          {activeTab === 'general' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <FiGlobe className="text-primary-400" />
+                  {t('settings.language')}
+                </h3>
+                <p className="text-kiosko-muted text-sm mb-4">
+                  {t('settings.languageDescription')}
+                </p>
+                
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => {
+                      changeLanguage('es');
+                      setCurrentLanguage('es');
+                    }}
+                    className={`flex-1 p-4 rounded-xl border-2 transition-all ${
+                      currentLanguage === 'es'
+                        ? 'border-primary-500 bg-primary-500/10'
+                        : 'border-kiosko-border hover:border-kiosko-muted'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2">🇪🇸</div>
+                    <div className="font-medium">{t('settings.spanish')}</div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      changeLanguage('en');
+                      setCurrentLanguage('en');
+                    }}
+                    className={`flex-1 p-4 rounded-xl border-2 transition-all ${
+                      currentLanguage === 'en'
+                        ? 'border-primary-500 bg-primary-500/10'
+                        : 'border-kiosko-border hover:border-kiosko-muted'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2">🇺🇸</div>
+                    <div className="font-medium">{t('settings.english')}</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tab Negocio */}
           {activeTab === 'business' && (
             <form onSubmit={handleSaveBusiness} className="space-y-6">
@@ -323,6 +464,49 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              <div>
+                <h3 className="text-lg font-bold mb-4">Opciones de Productos</h3>
+                <p className="text-sm text-kiosko-muted mb-4">
+                  Configura qué campos se muestran en el formulario de productos
+                </p>
+                
+                <div className="bg-kiosko-bg rounded-xl p-4 border border-kiosko-border space-y-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={businessData.showCostPrice}
+                      onChange={(e) =>
+                        setBusinessData((d) => ({ ...d, showCostPrice: e.target.checked }))
+                      }
+                      className="w-5 h-5 rounded border-kiosko-border bg-kiosko-bg text-primary-500 focus:ring-primary-500"
+                    />
+                    <div>
+                      <span className="font-medium">Mostrar precio de costo</span>
+                      <p className="text-xs text-kiosko-muted">
+                        Permite registrar el precio de costo de los productos
+                      </p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={businessData.showUnitsPerBox}
+                      onChange={(e) =>
+                        setBusinessData((d) => ({ ...d, showUnitsPerBox: e.target.checked }))
+                      }
+                      className="w-5 h-5 rounded border-kiosko-border bg-kiosko-bg text-primary-500 focus:ring-primary-500"
+                    />
+                    <div>
+                      <span className="font-medium">Mostrar unidades por caja</span>
+                      <p className="text-xs text-kiosko-muted">
+                        Permite configurar cuántas unidades vienen por caja/paquete
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
               <button type="submit" className="btn-primary flex items-center gap-2">
                 <FiSave size={18} />
                 Guardar Cambios
@@ -401,14 +585,124 @@ export default function SettingsPage() {
                   Sistema de Gestión de Stock y Ventas
                 </p>
                 <p className="text-kiosko-muted text-sm mt-1">
-                  Versión 1.0.0
+                  Versión {currentVersion}
                 </p>
+              </div>
+
+              {/* Sección de Actualizaciones */}
+              <div className="p-4 bg-kiosko-bg rounded-lg">
+                <h4 className="font-bold mb-3 flex items-center gap-2">
+                  <FiDownload size={18} />
+                  Actualizaciones
+                </h4>
+                
+                {updateStatus === 'idle' && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-kiosko-muted">
+                      Verifica si hay nuevas versiones disponibles
+                    </p>
+                    <button
+                      onClick={checkForUpdates}
+                      className="btn-primary flex items-center gap-2"
+                    >
+                      <FiRefreshCw size={16} />
+                      Buscar actualizaciones
+                    </button>
+                  </div>
+                )}
+
+                {updateStatus === 'checking' && (
+                  <div className="flex items-center gap-3 text-primary-400">
+                    <FiRefreshCw className="animate-spin" size={20} />
+                    <span>Verificando actualizaciones...</span>
+                  </div>
+                )}
+
+                {updateStatus === 'available' && updateInfo && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-green-400">
+                      <FiCheckCircle size={20} />
+                      <span className="font-medium">
+                        ¡Nueva versión disponible! v{updateInfo.version}
+                      </span>
+                    </div>
+                    {updateInfo.releaseNotes && (
+                      <p className="text-sm text-kiosko-muted pl-7">
+                        {typeof updateInfo.releaseNotes === 'string' 
+                          ? updateInfo.releaseNotes 
+                          : 'Mejoras y correcciones de errores'}
+                      </p>
+                    )}
+                    <button
+                      onClick={downloadUpdate}
+                      className="btn-primary flex items-center gap-2 ml-7"
+                    >
+                      <FiDownload size={16} />
+                      Descargar actualización
+                    </button>
+                  </div>
+                )}
+
+                {updateStatus === 'downloading' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 text-primary-400">
+                      <FiDownload size={20} />
+                      <span>Descargando actualización...</span>
+                    </div>
+                    <div className="w-full bg-slate-700 rounded-full h-3">
+                      <div 
+                        className="bg-primary-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${downloadProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-kiosko-muted text-center">
+                      {downloadProgress.toFixed(1)}% completado
+                    </p>
+                  </div>
+                )}
+
+                {updateStatus === 'downloaded' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-green-400">
+                      <FiCheckCircle size={20} />
+                      <span className="font-medium">
+                        Actualización lista para instalar (v{updateInfo?.version})
+                      </span>
+                    </div>
+                    <p className="text-sm text-kiosko-muted pl-7">
+                      La aplicación se reiniciará para aplicar los cambios. 
+                      Tus datos se mantendrán intactos.
+                    </p>
+                    <button
+                      onClick={installUpdate}
+                      className="btn-primary flex items-center gap-2 ml-7"
+                    >
+                      <FiRefreshCw size={16} />
+                      Instalar y reiniciar
+                    </button>
+                  </div>
+                )}
+
+                {updateStatus === 'error' && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-red-400">
+                      Error al verificar actualizaciones
+                    </p>
+                    <button
+                      onClick={checkForUpdates}
+                      className="btn-secondary flex items-center gap-2"
+                    >
+                      <FiRefreshCw size={16} />
+                      Reintentar
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-kiosko-bg rounded-lg">
                   <p className="text-sm text-kiosko-muted mb-1">Tecnologías</p>
-                  <p className="font-medium">Electron + React + PostgreSQL</p>
+                  <p className="font-medium">Electron + React + SQLite</p>
                 </div>
                 <div className="p-4 bg-kiosko-bg rounded-lg">
                   <p className="text-sm text-kiosko-muted mb-1">Usuario actual</p>

@@ -6,7 +6,6 @@ import {
   FiTrash2,
   FiUser,
   FiShield,
-  FiUsers,
 } from 'react-icons/fi';
 
 interface User {

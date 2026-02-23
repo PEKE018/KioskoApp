@@ -11,10 +11,12 @@ Sistema de gestión de stock y ventas **especializado para kioscos**, diseñado 
 | Frontend | React 18 + TypeScript | UI reactiva, componentes reutilizables |
 | Desktop | Electron | App nativa Windows, acceso a hardware |
 | Backend | Node.js (en Electron main process) | Integración directa con DB |
-| Base de Datos | PostgreSQL | Robustez, consultas complejas |
+| Base de Datos | SQLite | Embebido, sin servidor, portable |
 | ORM | Prisma | Type-safe, migraciones automáticas |
 | UI Components | Tailwind CSS | Diseño rápido, consistente |
 | Estado | Zustand | Ligero, simple, performante |
+| Logging | electron-log | Logs persistentes para diagnóstico |
+| Actualizaciones | electron-updater | Actualizaciones automáticas |
 
 ## Estructura de Carpetas
 

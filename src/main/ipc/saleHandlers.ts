@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron';
+import { logger } from '../utils/logger';
 import { prisma } from '../database/init';
 
 interface SaleItemData {
@@ -62,37 +63,74 @@ export function registerSaleHandlers(ipcMain: IpcMain): void {
           },
         });
 
-        // 2. Descontar stock de cada producto
+        // 2. Descontar stock de cada producto (o componentes si es combo)
         for (const item of data.items) {
           const product = await tx.product.findUnique({
             where: { id: item.productId },
+            include: {
+              comboComponents: {
+                include: {
+                  component: true
+                }
+              }
+            }
           });
 
           if (!product) {
             throw new Error(`Producto no encontrado: ${item.productId}`);
           }
 
-          const newStock = product.stock - item.quantity;
+          // Si es un combo, descontar stock de los componentes
+          if (product.isCombo && product.comboComponents.length > 0) {
+            for (const comboComp of product.comboComponents) {
+              const componentProduct = comboComp.component;
+              const quantityToDeduct = comboComp.quantity * item.quantity;
+              const newStock = componentProduct.stock - quantityToDeduct;
 
-          // Actualizar stock
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: newStock },
-          });
+              // Actualizar stock del componente
+              await tx.product.update({
+                where: { id: componentProduct.id },
+                data: { stock: newStock },
+              });
 
-          // Registrar movimiento de stock
-          await tx.stockMovement.create({
-            data: {
-              type: 'SALE',
-              quantity: -item.quantity,
-              reason: `Venta #${sale.id.slice(0, 8)}`,
-              stockBefore: product.stock,
-              stockAfter: newStock,
-              productId: item.productId,
-              userId: data.userId,
-              saleId: sale.id,
-            },
-          });
+              // Registrar movimiento de stock del componente
+              await tx.stockMovement.create({
+                data: {
+                  type: 'SALE',
+                  quantity: -quantityToDeduct,
+                  reason: `Venta combo "${product.name}" #${sale.id.slice(0, 8)}`,
+                  stockBefore: componentProduct.stock,
+                  stockAfter: newStock,
+                  productId: componentProduct.id,
+                  userId: data.userId,
+                  saleId: sale.id,
+                },
+              });
+            }
+          } else {
+            // Producto simple: descontar stock normal
+            const newStock = product.stock - item.quantity;
+
+            // Actualizar stock
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: newStock },
+            });
+
+            // Registrar movimiento de stock
+            await tx.stockMovement.create({
+              data: {
+                type: 'SALE',
+                quantity: -item.quantity,
+                reason: `Venta #${sale.id.slice(0, 8)}`,
+                stockBefore: product.stock,
+                stockAfter: newStock,
+                productId: item.productId,
+                userId: data.userId,
+                saleId: sale.id,
+              },
+            });
+          }
         }
 
         // 3. Actualizar total de ventas en caja (si es efectivo)
@@ -120,7 +158,7 @@ export function registerSaleHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: result };
     } catch (error) {
-      console.error('Error creating sale:', error);
+      logger.error('Sale', 'Error creating sale', error);
       return { success: false, error: 'Error al procesar la venta' };
     }
   });
@@ -150,7 +188,7 @@ export function registerSaleHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: sales };
     } catch (error) {
-      console.error('Error getting today sales:', error);
+      logger.error('Sale', 'Error getting today sales', error);
       return { success: false, error: 'Error al obtener ventas del día' };
     }
   });
@@ -174,7 +212,7 @@ export function registerSaleHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: sales };
     } catch (error) {
-      console.error('Error getting sales by date range:', error);
+      logger.error('Sale', 'Error getting sales by date range', error);
       return { success: false, error: 'Error al obtener ventas' };
     }
   });
@@ -196,7 +234,7 @@ export function registerSaleHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: sale };
     } catch (error) {
-      console.error('Error getting sale:', error);
+      logger.error('Sale', 'Error getting sale', error);
       return { success: false, error: 'Error al obtener venta' };
     }
   });
@@ -261,7 +299,7 @@ export function registerSaleHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: result };
     } catch (error) {
-      console.error('Error cancelling sale:', error);
+      logger.error('Sale', 'Error cancelling sale', error);
       return { success: false, error: 'Error al cancelar venta' };
     }
   });
@@ -306,7 +344,7 @@ export function registerSaleHandlers(ipcMain: IpcMain): void {
         },
       };
     } catch (error) {
-      console.error('Error getting daily summary:', error);
+      logger.error('Sale', 'Error getting daily summary', error);
       return { success: false, error: 'Error al obtener resumen' };
     }
   });

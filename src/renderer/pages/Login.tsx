@@ -1,13 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { FiUser, FiLock, FiAlertCircle } from 'react-icons/fi';
 
+interface InitialCredentials {
+  username: string;
+  password: string;
+}
+
 export default function LoginPage() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'credentials' | 'pin'>('credentials');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
+  const [initialCredentials, setInitialCredentials] = useState<InitialCredentials | null>(null);
   
   const navigate = useNavigate();
   const { user, login, loginWithPin, isLoading, error, clearError } = useAuthStore();
@@ -21,6 +29,21 @@ export default function LoginPage() {
       navigate('/pos');
     }
   }, [user, navigate]);
+
+  // Cargar credenciales iniciales si existen
+  useEffect(() => {
+    const loadInitialCredentials = async () => {
+      try {
+        const result = await window.api.auth.getInitialCredentials() as { success: boolean; data: InitialCredentials | null };
+        if (result.success && result.data) {
+          setInitialCredentials(result.data);
+        }
+      } catch (error) {
+        // Ignorar si no se pueden cargar
+      }
+    };
+    loadInitialCredentials();
+  }, []);
 
   // Focus inicial
   useEffect(() => {
@@ -44,16 +67,6 @@ export default function LoginPage() {
     const success = await login(username, password);
     if (success) {
       navigate('/pos');
-    }
-  };
-
-  const handlePinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pin.length === 4) {
-      const success = await loginWithPin(pin);
-      if (success) {
-        navigate('/pos');
-      }
     }
   };
 
@@ -97,7 +110,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-primary-400 mb-2">🏪 KioskoApp</h1>
-          <p className="text-kiosko-muted">Sistema de gestión de kiosco</p>
+          <p className="text-kiosko-muted">{t('login.title')}</p>
         </div>
 
         {/* Tabs */}
@@ -110,7 +123,7 @@ export default function LoginPage() {
                 : 'text-kiosko-muted hover:text-kiosko-text'
             }`}
           >
-            Usuario
+            {t('login.credentials')}
           </button>
           <button
             onClick={() => setMode('pin')}
@@ -120,7 +133,7 @@ export default function LoginPage() {
                 : 'text-kiosko-muted hover:text-kiosko-text'
             }`}
           >
-            PIN Rápido
+            {t('login.pin')}
           </button>
         </div>
 
@@ -137,7 +150,7 @@ export default function LoginPage() {
           <form onSubmit={handleCredentialsSubmit} className="card space-y-4">
             <div>
               <label className="block text-sm font-medium text-kiosko-muted mb-1">
-                Usuario
+                {t('login.username')}
               </label>
               <div className="relative">
                 <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
@@ -147,7 +160,7 @@ export default function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="input pl-10"
-                  placeholder="Ingrese su usuario"
+                  placeholder={t('login.usernamePlaceholder')}
                   autoComplete="username"
                 />
               </div>
@@ -155,7 +168,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-kiosko-muted mb-1">
-                Contraseña
+                {t('login.password')}
               </label>
               <div className="relative">
                 <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
@@ -164,7 +177,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="input pl-10"
-                  placeholder="Ingrese su contraseña"
+                  placeholder={t('login.passwordPlaceholder')}
                   autoComplete="current-password"
                 />
               </div>
@@ -175,7 +188,7 @@ export default function LoginPage() {
               disabled={isLoading || !username || !password}
               className="btn-primary w-full py-3"
             >
-              {isLoading ? 'Ingresando...' : 'Ingresar'}
+              {isLoading ? t('login.loading') : t('login.submit')}
             </button>
           </form>
         )}
@@ -184,7 +197,7 @@ export default function LoginPage() {
         {mode === 'pin' && (
           <div className="card">
             <div className="text-center mb-6">
-              <p className="text-kiosko-muted mb-4">Ingrese su PIN de 4 dígitos</p>
+              <p className="text-kiosko-muted mb-4">{t('login.pinPrompt')}</p>
               
               {/* Display de PIN */}
               <div className="flex justify-center gap-3 mb-2">
@@ -240,10 +253,12 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Footer */}
-        <p className="text-center text-kiosko-muted text-sm mt-6">
-          Usuario por defecto: <code className="text-primary-400">admin</code> / <code className="text-primary-400">admin123</code>
-        </p>
+        {/* Footer - Solo mostrar si hay credenciales iniciales */}
+        {initialCredentials && (
+          <p className="text-center text-kiosko-muted text-sm mt-6">
+            {t('login.defaultCredentials')}: <code className="text-primary-400">{initialCredentials.username}</code> / <code className="text-primary-400">{initialCredentials.password}</code>
+          </p>
+        )}
       </div>
     </div>
   );

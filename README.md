@@ -69,9 +69,11 @@ El instalador se generará en la carpeta `release/`.
 
 ### Login
 
-- **Usuario por defecto**: `admin`
-- **Contraseña**: `admin123`
-- **PIN rápido**: `0000`
+Al primer inicio, las credenciales se generan automáticamente y se guardan en un archivo:
+- **Windows:** `%APPDATA%/KioskoApp/CREDENCIALES_INICIALES.txt`
+- **Desarrollo:** En la raíz del proyecto
+
+⚠️ **IMPORTANTE:** Cambie las credenciales inmediatamente después del primer inicio.
 
 ### Atajos de Teclado
 

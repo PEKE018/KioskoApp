@@ -1,6 +1,6 @@
 {
   "name": "kiosko-app",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "Sistema de gestión de stock y ventas para kioscos",
   "main": "dist/main/index.js",
   "author": "KioskoApp",
@@ -15,6 +15,10 @@
     "start": "npm run dev",
     "electron:dev": "wait-on http://localhost:5174 && electron .",
     "package": "npm run build && electron-builder",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio"
@@ -22,21 +26,29 @@
   "dependencies": {
     "@prisma/client": "^5.10.0",
     "bcryptjs": "^2.4.3",
+    "electron-log": "^5.4.3",
     "electron-store": "^8.1.0",
+    "electron-updater": "^6.8.3",
+    "i18next": "^25.8.10",
+    "react-i18next": "^16.5.4",
     "uuid": "^9.0.0",
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@types/uuid": "^9.0.7",
     "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^4.0.18",
     "autoprefixer": "^10.4.17",
     "concurrently": "^8.2.2",
     "electron": "^28.2.0",
     "electron-builder": "^24.9.1",
+    "jsdom": "^28.1.0",
     "postcss": "^8.4.33",
     "prisma": "^5.10.0",
     "react": "^18.2.0",
@@ -46,11 +58,13 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
+    "vitest": "^4.0.18",
     "wait-on": "^7.2.0"
   },
   "build": {
     "appId": "com.kioskoapp.desktop",
     "productName": "KioskoApp",
+    "asar": false,
     "directories": {
       "output": "release"
     },
@@ -58,28 +72,54 @@
       "dist/**/*",
       "prisma/**/*",
       "node_modules/@prisma/client/**/*",
-      "node_modules/.prisma/**/*"
-    ],
-    "asarUnpack": [
-      "node_modules/@prisma/**/*",
-      "node_modules/.prisma/**/*"
+      {
+        "from": "node_modules/.prisma",
+        "to": "node_modules/.prisma",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "extraResources": [
       {
         "from": "prisma",
         "to": "prisma",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "build/vc_redist.x64.exe",
+        "to": "vc_redist.x64.exe"
+      },
+      {
+        "from": "build/diagnostico.bat",
+        "to": "diagnostico.bat"
       }
     ],
-    "afterPack": "./scripts/afterPack.js",
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "signAndEditExecutable": false,
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "include": "build/installer.nsh",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeader": "build/installerHeader.bmp",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "warningsAsErrors": false,
+      "runAfterFinish": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "PEKE018",
+      "repo": "KioskoApp",
+      "releaseType": "release"
     }
   }
 }

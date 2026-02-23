@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron';
+import { logger } from '../utils/logger';
 import { prisma } from '../database/init';
 
 // === Generador de códigos internos ===
@@ -41,6 +42,8 @@ interface CreateProductData {
   unitsPerBox?: number;
   sellByUnit?: boolean;
   categoryId?: string;
+  isCombo?: boolean;
+  components?: { productId: string; quantity: number }[]; // Para combos
 }
 
 interface UpdateProductData extends Partial<CreateProductData> {}
@@ -51,31 +54,46 @@ export function registerProductHandlers(ipcMain: IpcMain): void {
     try {
       const products = await prisma.product.findMany({
         where: { active: true },
-        include: { category: true },
+        include: { 
+          category: true,
+          comboComponents: {
+            include: {
+              component: {
+                select: { id: true, name: true, barcode: true, stock: true, price: true }
+              }
+            }
+          }
+        },
         orderBy: { name: 'asc' },
       });
       return { success: true, data: products };
     } catch (error) {
-      console.error('Error getting products:', error);
+      logger.error('Product', 'Error getting products', error);
       return { success: false, error: 'Error al obtener productos' };
     }
   });
 
-  // Buscar por código de barras
+  // Buscar por código de barras - puede devolver múltiples productos
   ipcMain.handle('products:getByBarcode', async (_, barcode: string) => {
     try {
-      const product = await prisma.product.findUnique({
-        where: { barcode },
+      const products = await prisma.product.findMany({
+        where: { barcode, active: true },
         include: { category: true },
       });
       
-      if (!product) {
+      if (products.length === 0) {
         return { success: false, error: 'Producto no encontrado', notFound: true };
       }
       
-      return { success: true, data: product };
+      // Si hay un solo producto, devolver como antes para compatibilidad
+      if (products.length === 1) {
+        return { success: true, data: products[0] };
+      }
+      
+      // Si hay múltiples, devolver array con flag
+      return { success: true, data: products, multiple: true };
     } catch (error) {
-      console.error('Error getting product by barcode:', error);
+      logger.error('Product', 'Error getting product by barcode', error);
       return { success: false, error: 'Error al buscar producto' };
     }
   });
@@ -90,7 +108,7 @@ export function registerProductHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: products };
     } catch (error) {
-      console.error('Error getting products by category:', error);
+      logger.error('Product', 'Error getting products by category', error);
       return { success: false, error: 'Error al obtener productos de la categoría' };
     }
   });
@@ -118,23 +136,15 @@ export function registerProductHandlers(ipcMain: IpcMain): void {
         // Verificar que el código generado sea único (muy improbable que no lo sea)
         let attempts = 0;
         while (attempts < 5) {
-          const existingGenerated = await prisma.product.findUnique({
+          const existingGenerated = await prisma.product.findFirst({
             where: { barcode },
           });
           if (!existingGenerated) break;
           barcode = generateInternalBarcode(categoryName);
           attempts++;
         }
-      } else {
-        // Verificar si ya existe el código de barras ingresado
-        const existing = await prisma.product.findUnique({
-          where: { barcode },
-        });
-
-        if (existing) {
-          return { success: false, error: 'Ya existe un producto con ese código de barras' };
-        }
       }
+      // Ya no verificamos duplicados - se permiten códigos de barras repetidos
 
       const product = await prisma.product.create({
         data: {
@@ -143,18 +153,48 @@ export function registerProductHandlers(ipcMain: IpcMain): void {
           description: data.description,
           price: data.price,
           cost: data.cost ?? 0,
-          stock: data.stock ?? 0,
-          minStock: data.minStock ?? 5,
+          stock: data.isCombo ? 0 : (data.stock ?? 0), // Combos no tienen stock propio
+          minStock: data.isCombo ? 0 : (data.minStock ?? 5),
           unitsPerBox: data.unitsPerBox ?? 1,
           sellByUnit: data.sellByUnit ?? true,
           categoryId: data.categoryId,
+          isCombo: data.isCombo ?? false,
         },
         include: { category: true },
       });
 
+      // Si es combo y tiene componentes, crearlos
+      if (data.isCombo && data.components && data.components.length > 0) {
+        for (const comp of data.components) {
+          await prisma.comboComponent.create({
+            data: {
+              comboId: product.id,
+              componentId: comp.productId,
+              quantity: comp.quantity,
+            },
+          });
+        }
+        
+        // Re-obtener el producto con los componentes
+        const productWithComponents = await prisma.product.findUnique({
+          where: { id: product.id },
+          include: {
+            category: true,
+            comboComponents: {
+              include: {
+                component: {
+                  select: { id: true, name: true, barcode: true, stock: true, price: true }
+                }
+              }
+            }
+          },
+        });
+        return { success: true, data: productWithComponents };
+      }
+
       return { success: true, data: product };
     } catch (error) {
-      console.error('Error creating product:', error);
+      logger.error('Product', 'Error creating product', error);
       return { success: false, error: 'Error al crear producto' };
     }
   });
@@ -162,25 +202,61 @@ export function registerProductHandlers(ipcMain: IpcMain): void {
   // Actualizar producto
   ipcMain.handle('products:update', async (_, id: string, data: UpdateProductData) => {
     try {
-      // Si se cambia el barcode, verificar que no exista
-      if (data.barcode) {
-        const existing = await prisma.product.findFirst({
-          where: { barcode: data.barcode, NOT: { id } },
-        });
-        if (existing) {
-          return { success: false, error: 'Ya existe otro producto con ese código de barras' };
-        }
+      // Extraer components del data para manejarlo separadamente
+      const { components, ...productData } = data;
+      
+      // Si se está convirtiendo a combo, ajustar stock
+      if (productData.isCombo === true) {
+        productData.stock = 0;
+        productData.minStock = 0;
       }
 
       const product = await prisma.product.update({
         where: { id },
-        data,
+        data: productData,
         include: { category: true },
       });
 
+      // Si tiene componentes, actualizar la relación
+      if (components !== undefined) {
+        // Eliminar componentes existentes
+        await prisma.comboComponent.deleteMany({
+          where: { comboId: id },
+        });
+        
+        // Crear nuevos componentes
+        if (components.length > 0) {
+          for (const comp of components) {
+            await prisma.comboComponent.create({
+              data: {
+                comboId: id,
+                componentId: comp.productId,
+                quantity: comp.quantity,
+              },
+            });
+          }
+        }
+        
+        // Re-obtener con componentes
+        const productWithComponents = await prisma.product.findUnique({
+          where: { id },
+          include: {
+            category: true,
+            comboComponents: {
+              include: {
+                component: {
+                  select: { id: true, name: true, barcode: true, stock: true, price: true }
+                }
+              }
+            }
+          },
+        });
+        return { success: true, data: productWithComponents };
+      }
+
       return { success: true, data: product };
     } catch (error) {
-      console.error('Error updating product:', error);
+      logger.error('Product', 'Error updating product', error);
       return { success: false, error: 'Error al actualizar producto' };
     }
   });
@@ -194,7 +270,7 @@ export function registerProductHandlers(ipcMain: IpcMain): void {
       });
       return { success: true };
     } catch (error) {
-      console.error('Error deleting product:', error);
+      logger.error('Product', 'Error deleting product', error);
       return { success: false, error: 'Error al eliminar producto' };
     }
   });
@@ -202,22 +278,24 @@ export function registerProductHandlers(ipcMain: IpcMain): void {
   // Buscar productos
   ipcMain.handle('products:search', async (_, query: string) => {
     try {
-      const products = await prisma.product.findMany({
-        where: {
-          active: true,
-          OR: [
-            { name: { contains: query } },
-            { barcode: { contains: query } },
-            { description: { contains: query } },
-          ],
-        },
+      // SQLite no soporta búsqueda case-insensitive nativa
+      // Obtenemos todos los productos activos y filtramos en JavaScript
+      const allProducts = await prisma.product.findMany({
+        where: { active: true },
         include: { category: true },
-        take: 20,
         orderBy: { name: 'asc' },
       });
+      
+      const lowerQuery = query.toLowerCase();
+      const products = allProducts.filter(p => 
+        p.name.toLowerCase().includes(lowerQuery) ||
+        p.barcode.toLowerCase().includes(lowerQuery) ||
+        (p.description && p.description.toLowerCase().includes(lowerQuery))
+      ).slice(0, 20);
+      
       return { success: true, data: products };
     } catch (error) {
-      console.error('Error searching products:', error);
+      logger.error('Product', 'Error searching products', error);
       return { success: false, error: 'Error al buscar productos' };
     }
   });
@@ -235,8 +313,112 @@ export function registerProductHandlers(ipcMain: IpcMain): void {
       });
       return { success: true, data: products };
     } catch (error) {
-      console.error('Error getting low stock products:', error);
+      logger.error('Product', 'Error getting low stock products', error);
       return { success: false, error: 'Error al obtener productos con stock bajo' };
+    }
+  });
+
+  // === HANDLERS PARA COMBOS ===
+
+  // Obtener solo productos simples (no combos) para seleccionar como componentes
+  ipcMain.handle('products:getSimple', async () => {
+    try {
+      const products = await prisma.product.findMany({
+        where: { 
+          active: true,
+          isCombo: false, // Solo productos simples, no combos
+        },
+        include: { category: true },
+        orderBy: { name: 'asc' },
+      });
+      return { success: true, data: products };
+    } catch (error) {
+      logger.error('Product', 'Error getting simple products', error);
+      return { success: false, error: 'Error al obtener productos simples' };
+    }
+  });
+
+  // Obtener solo combos
+  ipcMain.handle('products:getCombos', async () => {
+    try {
+      const combos = await prisma.product.findMany({
+        where: { 
+          active: true,
+          isCombo: true,
+        },
+        include: { 
+          category: true,
+          comboComponents: {
+            include: {
+              component: {
+                select: { id: true, name: true, barcode: true, stock: true, price: true }
+              }
+            }
+          }
+        },
+        orderBy: { name: 'asc' },
+      });
+      return { success: true, data: combos };
+    } catch (error) {
+      logger.error('Product', 'Error getting combos', error);
+      return { success: false, error: 'Error al obtener combos' };
+    }
+  });
+
+  // Obtener componentes de un combo específico
+  ipcMain.handle('products:getComboComponents', async (_, comboId: string) => {
+    try {
+      const components = await prisma.comboComponent.findMany({
+        where: { comboId },
+        include: {
+          component: {
+            select: { id: true, name: true, barcode: true, stock: true, price: true, cost: true }
+          }
+        },
+      });
+      return { success: true, data: components };
+    } catch (error) {
+      logger.error('Product', 'Error getting combo components', error);
+      return { success: false, error: 'Error al obtener componentes del combo' };
+    }
+  });
+
+  // Verificar stock disponible para un combo
+  ipcMain.handle('products:checkComboStock', async (_, comboId: string, quantity: number = 1) => {
+    try {
+      const components = await prisma.comboComponent.findMany({
+        where: { comboId },
+        include: {
+          component: {
+            select: { id: true, name: true, stock: true }
+          }
+        },
+      });
+
+      // Verificar si hay suficiente stock de cada componente
+      const stockStatus = components.map(comp => ({
+        productId: comp.component.id,
+        name: comp.component.name,
+        required: comp.quantity * quantity,
+        available: comp.component.stock,
+        sufficient: comp.component.stock >= comp.quantity * quantity,
+      }));
+
+      const allSufficient = stockStatus.every(s => s.sufficient);
+      
+      return { 
+        success: true, 
+        data: { 
+          available: allSufficient,
+          components: stockStatus,
+          maxQuantity: allSufficient 
+            ? Math.min(...stockStatus.map(s => Math.floor(s.available / (s.required / quantity))))
+            : 0
+        } 
+      };
+    } catch (error) {
+      logger.error('Product', 'Error checking combo stock', error);
+      return { success: false, error: 'Error al verificar stock del combo' };
     }
   });
 }

@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld('api', {
     delete: (id: string) => ipcRenderer.invoke('products:delete', id),
     search: (query: string) => ipcRenderer.invoke('products:search', query),
     getLowStock: () => ipcRenderer.invoke('products:getLowStock'),
+    // Combos
+    getSimple: () => ipcRenderer.invoke('products:getSimple'),
+    getCombos: () => ipcRenderer.invoke('products:getCombos'),
+    getComboComponents: (comboId: string) => ipcRenderer.invoke('products:getComboComponents', comboId),
+    checkComboStock: (comboId: string, quantity?: number) => ipcRenderer.invoke('products:checkComboStock', comboId, quantity),
   },
 
   // === CATEGORÍAS ===
@@ -55,6 +60,7 @@ contextBridge.exposeInMainWorld('api', {
     restoreSession: (userId: string) => ipcRenderer.invoke('auth:restoreSession', userId),
     changePassword: (oldPassword: string, newPassword: string) => 
       ipcRenderer.invoke('auth:changePassword', oldPassword, newPassword),
+    getInitialCredentials: () => ipcRenderer.invoke('auth:getInitialCredentials'),
   },
 
   // === USUARIOS (solo admin) ===
@@ -83,6 +89,10 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('reports:profit', start, end),
     getCategoryReport: (start?: Date, end?: Date) => 
       ipcRenderer.invoke('reports:byCategory', start, end),
+    getByCashier: (date?: Date) => 
+      ipcRenderer.invoke('reports:byCashier', date),
+    getCashierHistory: (userId: string, days?: number) => 
+      ipcRenderer.invoke('reports:cashierHistory', userId, days),
   },
 
   // === CONFIGURACIÓN ===
@@ -101,6 +111,46 @@ contextBridge.exposeInMainWorld('api', {
     delete: (id: string) => ipcRenderer.invoke('customers:delete', id),
     registerPayment: (data: unknown) => ipcRenderer.invoke('customers:registerPayment', data),
     getWithDebt: () => ipcRenderer.invoke('customers:getWithDebt'),
+  },
+
+  // === BACKUP ===
+  backup: {
+    create: () => ipcRenderer.invoke('backup:create'),
+    restore: (backupPath: string) => ipcRenderer.invoke('backup:restore', backupPath),
+    list: () => ipcRenderer.invoke('backup:list'),
+    delete: (backupPath: string) => ipcRenderer.invoke('backup:delete', backupPath),
+    export: () => ipcRenderer.invoke('backup:export'),
+    import: () => ipcRenderer.invoke('backup:import'),
+    getDir: () => ipcRenderer.invoke('backup:getDir'),
+  },
+
+  // === LICENCIA ===
+  license: {
+    validate: () => ipcRenderer.invoke('license:validate'),
+    activate: (licenseKey: string) => ipcRenderer.invoke('license:activate', licenseKey),
+    getInfo: () => ipcRenderer.invoke('license:getInfo'),
+    hasFeature: (feature: string) => ipcRenderer.invoke('license:hasFeature', feature),
+    getMachineId: () => ipcRenderer.invoke('license:getMachineId'),
+  },
+
+  // === ACTUALIZACIONES ===
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    download: () => ipcRenderer.invoke('updater:download'),
+    install: () => ipcRenderer.invoke('updater:install'),
+    getCurrentVersion: () => ipcRenderer.invoke('updater:getCurrentVersion'),
+    onUpdateAvailable: (callback: (info: unknown) => void) => {
+      ipcRenderer.on('update-available', (_, info) => callback(info));
+    },
+    onDownloadProgress: (callback: (progress: unknown) => void) => {
+      ipcRenderer.on('update-progress', (_, progress) => callback(progress));
+    },
+    onUpdateDownloaded: (callback: (info: unknown) => void) => {
+      ipcRenderer.on('update-downloaded', (_, info) => callback(info));
+    },
+    onUpdateError: (callback: (error: unknown) => void) => {
+      ipcRenderer.on('update-error', (_, error) => callback(error));
+    },
   },
 });
 
@@ -134,17 +184,18 @@ declare global {
         getDailySummary: () => Promise<unknown>;
       };
       stock: {
-        addStock: (productId: string, quantity: number, reason: string) => Promise<unknown>;
-        removeStock: (productId: string, quantity: number, reason: string) => Promise<unknown>;
+        addStock: (productId: string, quantity: number, reason: string, userId?: string) => Promise<unknown>;
+        removeStock: (productId: string, quantity: number, reason: string, userId?: string) => Promise<unknown>;
         getMovements: (productId: string) => Promise<unknown>;
         getAllMovements: (limit?: number) => Promise<unknown>;
-        adjustStock: (productId: string, newQuantity: number, reason: string) => Promise<unknown>;
+        adjustStock: (productId: string, newQuantity: number, reason: string, userId?: string) => Promise<unknown>;
       };
       auth: {
         login: (username: string, password: string) => Promise<unknown>;
         loginWithPin: (pin: string) => Promise<unknown>;
         logout: () => Promise<unknown>;
         getCurrentUser: () => Promise<unknown>;
+        restoreSession: (userId: string) => Promise<unknown>;
         changePassword: (oldPassword: string, newPassword: string) => Promise<unknown>;
       };
       users: {
@@ -164,6 +215,8 @@ declare global {
         getTopProducts: (limit: number, start?: Date, end?: Date) => Promise<unknown>;
         getProfitReport: (start: Date, end: Date) => Promise<unknown>;
         getCategoryReport: (start?: Date, end?: Date) => Promise<unknown>;
+        getByCashier: (date?: Date) => Promise<unknown>;
+        getCashierHistory: (userId: string, days?: number) => Promise<unknown>;
       };
       settings: {
         get: () => Promise<unknown>;
@@ -178,6 +231,31 @@ declare global {
         delete: (id: string) => Promise<unknown>;
         registerPayment: (data: unknown) => Promise<unknown>;
         getWithDebt: () => Promise<unknown>;
+      };
+      backup: {
+        create: () => Promise<unknown>;
+        restore: (backupPath: string) => Promise<unknown>;
+        list: () => Promise<unknown>;
+        delete: (backupPath: string) => Promise<unknown>;
+        export: () => Promise<unknown>;
+        import: () => Promise<unknown>;
+        getDir: () => Promise<unknown>;
+      };
+      license: {
+        validate: () => Promise<unknown>;
+        activate: (licenseKey: string) => Promise<unknown>;
+        getInfo: () => Promise<unknown>;
+        hasFeature: (feature: string) => Promise<unknown>;
+        getMachineId: () => Promise<unknown>;
+      };
+      updater: {
+        check: () => Promise<unknown>;
+        download: () => Promise<unknown>;
+        install: () => Promise<unknown>;
+        getCurrentVersion: () => Promise<unknown>;
+        onUpdateAvailable: (callback: (info: unknown) => void) => void;
+        onDownloadProgress: (callback: (progress: unknown) => void) => void;
+        onUpdateDownloaded: (callback: (info: unknown) => void) => void;
       };
     };
   }

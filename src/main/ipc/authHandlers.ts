@@ -1,7 +1,10 @@
-import { IpcMain } from 'electron';
+import { IpcMain, app } from 'electron';
 import bcrypt from 'bcryptjs';
+import path from 'path';
+import fs from 'fs';
 import { prisma } from '../database/init';
 import { setCurrentUser } from './stockHandlers';
+import { logger } from '../utils/logger';
 
 interface CreateUserData {
   username: string;
@@ -66,7 +69,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
         },
       };
     } catch (error) {
-      console.error('Error logging in:', error);
+      logger.error('Auth', '\Error logging in:', error);
       return { success: false, error: 'Error al iniciar sesión' };
     }
   });
@@ -102,7 +105,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
         },
       };
     } catch (error) {
-      console.error('Error logging in with PIN:', error);
+      logger.error('Auth', '\Error logging in with PIN:', error);
       return { success: false, error: 'Error al iniciar sesión' };
     }
   });
@@ -154,7 +157,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
         },
       };
     } catch (error) {
-      console.error('Error restoring session:', error);
+      logger.error('Auth', '\Error restoring session:', error);
       return { success: false, error: 'Error al restaurar sesión' };
     }
   });
@@ -187,9 +190,30 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
         data: { password: hashedPassword },
       });
 
+      // Marcar que ya no requiere cambio de contraseña
+      try {
+        await prisma.$executeRawUnsafe('UPDATE "User" SET "requirePasswordChange" = 0 WHERE id = ?;', user.id);
+      } catch (e) {
+        // Columna puede no existir en versiones antiguas
+      }
+
+      // Eliminar archivo de credenciales iniciales si existe (buscar en ambas rutas posibles)
+      const isDev = !app.isPackaged;
+      const credentialsPaths = [
+        path.join(app.getPath('userData'), 'CREDENCIALES_INICIALES.txt'),
+        ...(isDev ? [path.join(__dirname, '../../../CREDENCIALES_INICIALES.txt')] : [])
+      ];
+      
+      for (const credPath of credentialsPaths) {
+        if (fs.existsSync(credPath)) {
+          fs.unlinkSync(credPath);
+          logger.info('Auth', 'Archivo de credenciales iniciales eliminado', { path: credPath });
+        }
+      }
+
       return { success: true };
     } catch (error) {
-      console.error('Error changing password:', error);
+      logger.error('Auth', '\Error changing password:', error);
       return { success: false, error: 'Error al cambiar contraseña' };
     }
   });
@@ -217,7 +241,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: users };
     } catch (error) {
-      console.error('Error getting users:', error);
+      logger.error('Auth', '\Error getting users:', error);
       return { success: false, error: 'Error al obtener usuarios' };
     }
   });
@@ -269,7 +293,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: user };
     } catch (error) {
-      console.error('Error creating user:', error);
+      logger.error('Auth', '\Error creating user:', error);
       return { success: false, error: 'Error al crear usuario' };
     }
   });
@@ -315,7 +339,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: user };
     } catch (error) {
-      console.error('Error updating user:', error);
+      logger.error('Auth', '\Error updating user:', error);
       return { success: false, error: 'Error al actualizar usuario' };
     }
   });
@@ -339,7 +363,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
 
       return { success: true };
     } catch (error) {
-      console.error('Error deleting user:', error);
+      logger.error('Auth', '\Error deleting user:', error);
       return { success: false, error: 'Error al eliminar usuario' };
     }
   });
@@ -374,7 +398,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: cashRegister };
     } catch (error) {
-      console.error('Error opening cash register:', error);
+      logger.error('Auth', '\Error opening cash register:', error);
       return { success: false, error: 'Error al abrir caja' };
     }
   });
@@ -417,7 +441,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: cashRegister };
     } catch (error) {
-      console.error('Error closing cash register:', error);
+      logger.error('Auth', '\Error closing cash register:', error);
       return { success: false, error: 'Error al cerrar caja' };
     }
   });
@@ -434,7 +458,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: openCash };
     } catch (error) {
-      console.error('Error getting current cash register:', error);
+      logger.error('Auth', '\Error getting current cash register:', error);
       return { success: false, error: 'Error al obtener caja' };
     }
   });
@@ -452,8 +476,55 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
 
       return { success: true, data: history };
     } catch (error) {
-      console.error('Error getting cash register history:', error);
+      logger.error('Auth', '\Error getting cash register history:', error);
       return { success: false, error: 'Error al obtener historial' };
+    }
+  });
+
+  // Obtener credenciales iniciales (solo si existe el archivo)
+  ipcMain.handle('auth:getInitialCredentials', async () => {
+    try {
+      // Buscar en ambas rutas posibles (producción y desarrollo)
+      const isDev = !app.isPackaged;
+      const credentialsPaths = [
+        path.join(app.getPath('userData'), 'CREDENCIALES_INICIALES.txt'),
+        ...(isDev ? [path.join(__dirname, '../../../CREDENCIALES_INICIALES.txt')] : [])
+      ];
+      
+      let credentialsPath = '';
+      for (const credPath of credentialsPaths) {
+        if (fs.existsSync(credPath)) {
+          credentialsPath = credPath;
+          break;
+        }
+      }
+      
+      if (!credentialsPath) {
+        return { success: true, data: null };
+      }
+
+      const content = fs.readFileSync(credentialsPath, 'utf-8');
+      const lines = content.split('\n');
+      
+      let username = '';
+      let password = '';
+      
+      for (const line of lines) {
+        if (line.startsWith('Usuario:')) {
+          username = line.replace('Usuario:', '').trim();
+        } else if (line.startsWith('Contraseña:')) {
+          password = line.replace('Contraseña:', '').trim();
+        }
+      }
+
+      if (username && password) {
+        return { success: true, data: { username, password } };
+      }
+
+      return { success: true, data: null };
+    } catch (error) {
+      logger.error('Auth', 'Error getting initial credentials:', error);
+      return { success: true, data: null };
     }
   });
 }
