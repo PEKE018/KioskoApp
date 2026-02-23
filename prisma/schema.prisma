@@ -71,6 +71,7 @@ model Product {
   cost        Float    @default(0) // Costo de compra
   isCigarette Boolean  @default(false) // Marcar como cigarrillo para recargo especial
   isCombo     Boolean  @default(false) // Es un combo/promoción
+  separateCash Boolean @default(false) // Va a caja aparte (no a caja general)
   
   // Stock
   stock       Int      @default(0)
@@ -169,10 +170,11 @@ model Sale {
 }
 
 model SaleItem {
-  id        String  @id @default(uuid())
-  quantity  Int
-  unitPrice Float   // Precio al momento de la venta
-  subtotal  Float   // quantity * unitPrice
+  id           String  @id @default(uuid())
+  quantity     Int
+  unitPrice    Float   // Precio al momento de la venta
+  subtotal     Float   // quantity * unitPrice
+  separateCash Boolean @default(false) // Si el producto iba a caja aparte al momento de la venta
   
   // Producto
   productId String
@@ -236,7 +238,8 @@ model CashRegister {
   // Montos
   initialAmount Float     // Monto inicial al abrir
   finalAmount   Float?    // Monto final al cerrar
-  salesTotal    Float     @default(0) // Total de ventas en efectivo
+  salesTotal    Float     @default(0) // Total de ventas en efectivo (caja general)
+  separateCashTotal Float @default(0) // Total de ventas de productos de caja aparte
   
   // Diferencia
   difference    Float?    // finalAmount - (initialAmount + salesTotal)

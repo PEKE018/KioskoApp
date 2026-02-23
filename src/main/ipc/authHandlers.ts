@@ -418,7 +418,47 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
         return { success: false, error: 'No hay caja abierta' };
       }
 
-      const expectedAmount = openCash.initialAmount + openCash.salesTotal;
+      // Obtener ventas con información de productos para calcular caja aparte
+      const salesWithItems = await prisma.sale.findMany({
+        where: { cashRegisterId: openCash.id },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: { id: true, name: true, separateCash: true }
+              }
+            }
+          }
+        }
+      });
+
+      // Calcular desglose de caja aparte
+      let separateCashTotal = 0;
+      const separateCashProducts: { productId: string; productName: string; quantity: number; total: number }[] = [];
+
+      for (const sale of salesWithItems) {
+        for (const item of sale.items) {
+          if (item.product.separateCash) {
+            separateCashTotal += item.subtotal;
+            const existing = separateCashProducts.find(p => p.productId === item.product.id);
+            if (existing) {
+              existing.quantity += item.quantity;
+              existing.total += item.subtotal;
+            } else {
+              separateCashProducts.push({
+                productId: item.product.id,
+                productName: item.product.name,
+                quantity: item.quantity,
+                total: item.subtotal
+              });
+            }
+          }
+        }
+      }
+
+      // El total esperado en caja general NO incluye los productos de caja aparte
+      const generalCashTotal = openCash.salesTotal - separateCashTotal;
+      const expectedAmount = openCash.initialAmount + generalCashTotal;
       const difference = finalAmount - expectedAmount;
 
       const cashRegister = await prisma.cashRegister.update({
@@ -439,7 +479,16 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
         },
       });
 
-      return { success: true, data: cashRegister };
+      // Agregar información de caja aparte al resultado
+      return { 
+        success: true, 
+        data: {
+          ...cashRegister,
+          separateCashTotal,
+          separateCashProducts,
+          generalCashTotal,
+        }
+      };
     } catch (error) {
       logger.error('Auth', '\Error closing cash register:', error);
       return { success: false, error: 'Error al cerrar caja' };
@@ -456,7 +505,58 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
         },
       });
 
-      return { success: true, data: openCash };
+      if (!openCash) {
+        return { success: true, data: null };
+      }
+
+      // Calcular desglose de caja aparte
+      const salesWithItems = await prisma.sale.findMany({
+        where: { cashRegisterId: openCash.id },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: { id: true, name: true, separateCash: true }
+              }
+            }
+          }
+        }
+      });
+
+      let separateCashTotal = 0;
+      const separateCashProducts: { productId: string; productName: string; quantity: number; total: number }[] = [];
+
+      for (const sale of salesWithItems) {
+        for (const item of sale.items) {
+          if (item.product.separateCash) {
+            separateCashTotal += item.subtotal;
+            const existing = separateCashProducts.find(p => p.productId === item.product.id);
+            if (existing) {
+              existing.quantity += item.quantity;
+              existing.total += item.subtotal;
+            } else {
+              separateCashProducts.push({
+                productId: item.product.id,
+                productName: item.product.name,
+                quantity: item.quantity,
+                total: item.subtotal
+              });
+            }
+          }
+        }
+      }
+
+      const generalCashTotal = openCash.salesTotal - separateCashTotal;
+
+      return { 
+        success: true, 
+        data: {
+          ...openCash,
+          separateCashTotal,
+          separateCashProducts,
+          generalCashTotal,
+        }
+      };
     } catch (error) {
       logger.error('Auth', '\Error getting current cash register:', error);
       return { success: false, error: 'Error al obtener caja' };

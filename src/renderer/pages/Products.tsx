@@ -53,6 +53,7 @@ export default function ProductsPage() {
     cost: '',
     isCigarette: false,
     isCombo: false,
+    separateCash: false,
     stock: '',
     minStock: '5',
     unitsPerBox: '1',
@@ -183,6 +184,7 @@ export default function ProductsPage() {
         cost: product.cost?.toString() || '',
         isCigarette: product.isCigarette || false,
         isCombo: product.isCombo || false,
+        separateCash: product.separateCash || false,
         stock: product.stock.toString(),
         minStock: product.minStock.toString(),
         unitsPerBox: product.unitsPerBox.toString(),
@@ -224,6 +226,7 @@ export default function ProductsPage() {
         cost: '',
         isCigarette: false,
         isCombo: false,
+        separateCash: false,
         stock: '0',
         minStock: '5',
         unitsPerBox: '1',
@@ -250,6 +253,7 @@ export default function ProductsPage() {
       cost: formData.cost ? parseFloat(formData.cost) : 0,
       isCigarette: formData.isCigarette,
       isCombo: formData.isCombo,
+      separateCash: formData.separateCash,
       stock: formData.isCombo ? 0 : (parseInt(formData.stock) || 0), // Combos no tienen stock propio
       minStock: formData.isCombo ? 0 : (parseInt(formData.minStock) || 5),
       unitsPerBox: parseInt(formData.unitsPerBox) || 1,
@@ -1134,8 +1138,8 @@ export default function ProductsPage() {
       {/* Modal de producto */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content max-w-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold mb-4">
+          <div className="modal-content max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-4 sticky top-0 bg-kiosko-card pb-2 -mt-2 pt-2 -mx-2 px-2 z-10">
               {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
             </h2>
 
@@ -1299,63 +1303,51 @@ export default function ProductsPage() {
                 </label>
               </div>
 
-              {/* Sección de componentes del combo */}
+              {/* Checkbox para Caja Aparte */}
+              <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 rounded-lg border border-emerald-500/30">
+                <input
+                  type="checkbox"
+                  id="separateCash"
+                  checked={formData.separateCash}
+                  onChange={(e) => setFormData((d) => ({ ...d, separateCash: e.target.checked }))}
+                  className="w-5 h-5 rounded border-kiosko-border text-emerald-500 focus:ring-emerald-500"
+                />
+                <label htmlFor="separateCash" className="text-sm font-medium cursor-pointer">
+                  💰 Caja Aparte (las ventas de este producto van a una caja separada)
+                </label>
+              </div>
+
+              {/* Sección de componentes del combo - SIMPLIFICADA */}
               {formData.isCombo && (
                 <div className="p-4 bg-kiosko-bg rounded-lg border border-kiosko-border space-y-3">
-                  <h4 className="font-medium text-primary-400">Componentes del Combo</h4>
-                  <p className="text-xs text-kiosko-muted">
-                    Selecciona los productos que componen este combo. Al vender, se descontará el stock de cada componente.
-                  </p>
+                  <h4 className="font-medium text-primary-400">🎁 Componentes del Combo</h4>
                   
-                  {/* Lista de componentes agregados */}
-                  {comboComponents.length > 0 && (
-                    <div className="space-y-2 mb-3">
+                  {/* Lista de componentes agregados - más compacta */}
+                  {comboComponents.length > 0 ? (
+                    <div className="space-y-1">
                       {comboComponents.map((comp, index) => {
                         const product = simpleProducts.find(p => p.id === comp.productId);
                         return (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-kiosko-card rounded border border-kiosko-border">
-                            <span className="flex-1 text-sm truncate">{comp.name || product?.name || 'Producto'}</span>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setComboComponents(prev => 
-                                    prev.map((c, i) => i === index ? { ...c, quantity: Math.max(0.5, c.quantity - 0.5) } : c)
-                                  );
-                                }}
-                                className="w-6 h-6 flex items-center justify-center bg-kiosko-bg rounded hover:bg-red-500/20"
-                              >
-                                <FiMinus size={12} />
-                              </button>
-                              <input
-                                type="number"
-                                value={comp.quantity}
-                                onChange={(e) => {
-                                  const qty = parseFloat(e.target.value) || 1;
-                                  setComboComponents(prev =>
-                                    prev.map((c, i) => i === index ? { ...c, quantity: qty } : c)
-                                  );
-                                }}
-                                className="w-16 text-center input py-1 text-sm"
-                                step="0.5"
-                                min="0.5"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setComboComponents(prev =>
-                                    prev.map((c, i) => i === index ? { ...c, quantity: c.quantity + 0.5 } : c)
-                                  );
-                                }}
-                                className="w-6 h-6 flex items-center justify-center bg-kiosko-bg rounded hover:bg-green-500/20"
-                              >
-                                <FiPlus size={12} />
-                              </button>
-                            </div>
+                          <div key={index} className="flex items-center gap-2 p-2 bg-kiosko-card rounded border border-kiosko-border group">
+                            <span className="flex-1 text-sm truncate">{comp.name || product?.name}</span>
+                            <span className="text-xs text-kiosko-muted">×</span>
+                            <input
+                              type="number"
+                              value={comp.quantity}
+                              onChange={(e) => {
+                                const qty = parseFloat(e.target.value) || 1;
+                                setComboComponents(prev =>
+                                  prev.map((c, i) => i === index ? { ...c, quantity: Math.max(0.5, qty) } : c)
+                                );
+                              }}
+                              className="w-14 text-center input py-1 text-sm"
+                              step="0.5"
+                              min="0.5"
+                            />
                             <button
                               type="button"
                               onClick={() => setComboComponents(prev => prev.filter((_, i) => i !== index))}
-                              className="w-6 h-6 flex items-center justify-center text-red-400 hover:bg-red-500/20 rounded"
+                              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-red-400 hover:bg-red-500/20 rounded transition-opacity"
                             >
                               <FiX size={14} />
                             </button>
@@ -1363,36 +1355,36 @@ export default function ProductsPage() {
                         );
                       })}
                     </div>
+                  ) : (
+                    <p className="text-xs text-amber-400 py-2">⚠️ Selecciona productos abajo para agregar al combo</p>
                   )}
                   
-                  {/* Selector para agregar componente */}
-                  <div className="flex gap-2">
-                    <select
-                      className="input flex-1"
-                      onChange={(e) => {
-                        const productId = e.target.value;
-                        if (productId && !comboComponents.find(c => c.productId === productId)) {
-                          const product = simpleProducts.find(p => p.id === productId);
-                          setComboComponents(prev => [...prev, { productId, quantity: 1, name: product?.name }]);
-                        }
-                        e.target.value = '';
-                      }}
-                      defaultValue=""
-                    >
-                      <option value="">+ Agregar producto al combo...</option>
+                  {/* Grid de productos disponibles - más fácil de usar */}
+                  <div className="border-t border-kiosko-border pt-3">
+                    <p className="text-xs text-kiosko-muted mb-2">Click para agregar:</p>
+                    <div className="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto">
                       {simpleProducts
                         .filter(p => !comboComponents.find(c => c.productId === p.id))
+                        .slice(0, 20) // Limitar para no saturar
                         .map(p => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} (Stock: {p.stock})
-                          </option>
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setComboComponents(prev => [...prev, { productId: p.id, quantity: 1, name: p.name }]);
+                            }}
+                            className="text-left p-2 text-xs bg-kiosko-card hover:bg-primary-600/20 rounded border border-kiosko-border truncate transition-colors"
+                          >
+                            + {p.name}
+                          </button>
                         ))}
-                    </select>
+                    </div>
+                    {simpleProducts.filter(p => !comboComponents.find(c => c.productId === p.id)).length > 20 && (
+                      <p className="text-xs text-kiosko-muted mt-1 text-center">
+                        +{simpleProducts.filter(p => !comboComponents.find(c => c.productId === p.id)).length - 20} más...
+                      </p>
+                    )}
                   </div>
-                  
-                  {comboComponents.length === 0 && (
-                    <p className="text-xs text-amber-400">⚠️ Agrega al menos un producto al combo</p>
-                  )}
                 </div>
               )}
 

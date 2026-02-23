@@ -11,6 +11,13 @@ import {
   FiUser,
 } from 'react-icons/fi';
 
+interface SeparateCashProduct {
+  productId: string;
+  productName: string;
+  quantity: number;
+  total: number;
+}
+
 interface CashRegister {
   id: string;
   status: string;
@@ -22,6 +29,10 @@ interface CashRegister {
   openedAt: string;
   closedAt: string | null;
   user: { name: string };
+  // Campos para caja aparte
+  separateCashTotal?: number;
+  separateCashProducts?: SeparateCashProduct[];
+  generalCashTotal?: number;
 }
 
 export default function CashRegisterPage() {
@@ -211,17 +222,51 @@ export default function CashRegisterPage() {
                   </p>
                 </div>
                 <div className="p-4 bg-kiosko-bg rounded-lg">
-                  <p className="text-sm text-kiosko-muted">Ventas en Efectivo</p>
+                  <p className="text-sm text-kiosko-muted">Ventas Totales</p>
                   <p className="text-xl font-bold text-stock-ok font-price">
                     {formatPrice(currentCash.salesTotal)}
                   </p>
                 </div>
               </div>
 
+              {/* Desglose de Caja Aparte */}
+              {currentCash.separateCashTotal && currentCash.separateCashTotal > 0 && (
+                <div className="p-4 bg-emerald-600/10 border border-emerald-500/30 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-emerald-400">💰 Caja Aparte</p>
+                    <p className="text-lg font-bold text-emerald-400 font-price">
+                      {formatPrice(currentCash.separateCashTotal)}
+                    </p>
+                  </div>
+                  {currentCash.separateCashProducts && currentCash.separateCashProducts.length > 0 && (
+                    <div className="space-y-1 pt-2 border-t border-emerald-500/20">
+                      {currentCash.separateCashProducts.map((product) => (
+                        <div key={product.productId} className="flex justify-between text-sm">
+                          <span className="text-kiosko-muted">
+                            {product.productName} x{product.quantity}
+                          </span>
+                          <span className="font-price text-emerald-300">
+                            {formatPrice(product.total)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Caja General */}
+              <div className="p-4 bg-kiosko-bg rounded-lg">
+                <p className="text-sm text-kiosko-muted">Ventas Caja General</p>
+                <p className="text-xl font-bold font-price">
+                  {formatPrice(currentCash.generalCashTotal ?? currentCash.salesTotal)}
+                </p>
+              </div>
+
               <div className="p-4 bg-kiosko-primary/10 border border-kiosko-primary/30 rounded-lg">
-                <p className="text-sm text-kiosko-muted">Total Esperado en Caja</p>
+                <p className="text-sm text-kiosko-muted">Total Esperado en Caja General</p>
                 <p className="text-2xl font-bold text-kiosko-primary font-price">
-                  {formatPrice(currentCash.initialAmount + currentCash.salesTotal)}
+                  {formatPrice(currentCash.initialAmount + (currentCash.generalCashTotal ?? currentCash.salesTotal))}
                 </p>
               </div>
 
@@ -232,7 +277,8 @@ export default function CashRegisterPage() {
 
               <button
                 onClick={() => {
-                  setCloseAmount((currentCash.initialAmount + currentCash.salesTotal).toString());
+                  const generalCash = currentCash.generalCashTotal ?? currentCash.salesTotal;
+                  setCloseAmount((currentCash.initialAmount + generalCash).toString());
                   setShowCloseModal(true);
                 }}
                 className="w-full btn-pos bg-stock-critical hover:bg-stock-critical/90"

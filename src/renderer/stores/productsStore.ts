@@ -9,6 +9,7 @@ export interface Product {
   cost: number;
   isCigarette: boolean;
   isCombo: boolean;
+  separateCash: boolean;
   stock: number;
   minStock: number;
   unitsPerBox: number;

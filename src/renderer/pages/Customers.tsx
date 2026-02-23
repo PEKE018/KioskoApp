@@ -164,6 +164,28 @@ export default function CustomersPage() {
     }
   };
 
+  // Eliminar cliente
+  const handleDeleteCustomer = async (customerId: string, customerName: string) => {
+    if (!confirm(`¿Estás seguro de eliminar al cliente "${customerName}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      const result = await (window as any).api.customers.delete(customerId) as { success: boolean; error?: string };
+
+      if (result.success) {
+        setMessage({ type: 'success', text: `Cliente "${customerName}" eliminado` });
+        setShowDetailModal(false);
+        setSelectedCustomer(null);
+        loadCustomers();
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Error al eliminar cliente' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error al eliminar cliente' });
+    }
+  };
+
   // Formato de precio
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-AR', {
@@ -449,6 +471,13 @@ export default function CustomersPage() {
             </div>
 
             <div className="flex gap-3 pt-6 mt-6 border-t border-kiosko-border">
+              <button
+                onClick={() => handleDeleteCustomer(selectedCustomer.id, selectedCustomer.name)}
+                className="btn-secondary text-stock-critical hover:bg-stock-critical/20 flex items-center gap-2"
+              >
+                <FiX size={18} />
+                Eliminar
+              </button>
               <button
                 onClick={() => setShowDetailModal(false)}
                 className="btn-secondary flex-1"

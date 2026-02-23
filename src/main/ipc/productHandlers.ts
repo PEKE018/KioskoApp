@@ -43,6 +43,7 @@ interface CreateProductData {
   sellByUnit?: boolean;
   categoryId?: string;
   isCombo?: boolean;
+  separateCash?: boolean; // Va a caja aparte
   components?: { productId: string; quantity: number }[]; // Para combos
 }
 
@@ -159,6 +160,7 @@ export function registerProductHandlers(ipcMain: IpcMain): void {
           sellByUnit: data.sellByUnit ?? true,
           categoryId: data.categoryId,
           isCombo: data.isCombo ?? false,
+          separateCash: data.separateCash ?? false,
         },
         include: { category: true },
       });
