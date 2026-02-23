@@ -13,6 +13,8 @@ import ReportsPage from './pages/Reports';
 import SettingsPage from './pages/Settings';
 import UsersPage from './pages/Users';
 
+console.log('[KioskoApp] App.tsx cargado');
+
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
   

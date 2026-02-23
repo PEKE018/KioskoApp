@@ -42,6 +42,8 @@ export default function ProductsPage() {
   
   // Estados para Gestión
   const [showModal, setShowModal] = useState(false);
+  const [showComboModal, setShowComboModal] = useState(false); // Modal de combos
+  const [comboProductSearch, setComboProductSearch] = useState(''); // Buscador en modal combo
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [autoGenerateBarcode, setAutoGenerateBarcode] = useState(false);
@@ -474,10 +476,32 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold">Productos</h1>
           
           {activeTab === 'gestion' && (
-            <button onClick={() => openModal()} className="btn-primary flex items-center gap-2">
-              <FiPlus size={20} />
-              Nuevo Producto
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => openModal()} className="btn-primary flex items-center gap-2">
+                <FiPlus size={20} />
+                Nuevo Producto
+              </button>
+              <button 
+                onClick={async () => {
+                  // Cargar productos simples para seleccionar componentes
+                  try {
+                    const result = await window.api.products.getSimple() as { success: boolean; data?: Product[] };
+                    if (result.success && result.data) {
+                      setSimpleProducts(result.data);
+                    }
+                  } catch (error) {
+                    console.error('Error loading simple products:', error);
+                  }
+                  setComboComponents([]);
+                  setFormData(d => ({ ...d, name: '', price: '', isCombo: true, categoryId: '' }));
+                  setShowComboModal(true);
+                }} 
+                className="px-3 py-2 text-sm bg-gradient-to-r from-primary-600/30 to-amber-600/30 hover:from-primary-600/50 hover:to-amber-600/50 text-primary-300 rounded-lg border border-primary-500/30 flex items-center gap-1 transition-all"
+                title="Crear Combo/Promoción"
+              >
+                🎁 Combo
+              </button>
+            </div>
           )}
           
           {activeTab === 'stock' && productsToLoad.length > 0 && (
@@ -1457,6 +1481,199 @@ export default function ProductsPage() {
                 </button>
                 <button type="submit" className="btn-primary flex-1">
                   {editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Combo/Promoción - Simplificado */}
+      {showComboModal && (
+        <div className="modal-overlay" onClick={() => setShowComboModal(false)}>
+          <div className="modal-content max-w-xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              🎁 Nuevo Combo / Promoción
+            </h2>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!formData.name.trim() || !formData.price) {
+                alert('Ingresa nombre y precio del combo');
+                return;
+              }
+              if (comboComponents.length === 0) {
+                alert('Agrega al menos un producto al combo');
+                return;
+              }
+              
+              try {
+                const productData = {
+                  name: formData.name,
+                  price: parseFloat(formData.price),
+                  cost: 0,
+                  isCombo: true,
+                  stock: 0,
+                  minStock: 0,
+                  unitsPerBox: 1,
+                  categoryId: formData.categoryId || undefined,
+                  components: comboComponents.map(c => ({ productId: c.productId, quantity: c.quantity })),
+                };
+                
+                const result = await window.api.products.create(productData) as { success: boolean; error?: string };
+                if (result.success) {
+                  setShowComboModal(false);
+                  setComboComponents([]);
+                  setFormData(d => ({ ...d, name: '', price: '', isCombo: false }));
+                  fetchProducts();
+                } else {
+                  alert(result.error || 'Error al crear combo');
+                }
+              } catch (error) {
+                alert('Error al crear combo');
+              }
+            }} className="space-y-4">
+              
+              {/* Nombre del combo */}
+              <div>
+                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  Nombre del Combo *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(d => ({ ...d, name: e.target.value }))}
+                  className="input w-full"
+                  placeholder="Ej: Promo 2x1 Gaseosas"
+                  autoFocus
+                />
+              </div>
+
+              {/* Precio y Categoría */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    Precio de venta *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted">$</span>
+                    <input
+                      type="number"
+                      value={formData.price}
+                      onChange={(e) => setFormData(d => ({ ...d, price: e.target.value }))}
+                      className="input w-full pl-8"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    Categoría
+                  </label>
+                  <select
+                    value={formData.categoryId}
+                    onChange={(e) => setFormData(d => ({ ...d, categoryId: e.target.value }))}
+                    className="input w-full"
+                  >
+                    <option value="">Sin categoría</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Productos del combo */}
+              <div className="p-4 bg-kiosko-bg rounded-lg border border-kiosko-border">
+                <h4 className="font-medium mb-3">Productos incluidos</h4>
+                
+                {comboComponents.length > 0 ? (
+                  <div className="space-y-2 mb-3">
+                    {comboComponents.map((comp, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-kiosko-card rounded border border-kiosko-border">
+                        <span className="flex-1 text-sm">{comp.name}</span>
+                        <span className="text-kiosko-muted">×</span>
+                        <input
+                          type="number"
+                          value={comp.quantity}
+                          onChange={(e) => {
+                            const qty = parseFloat(e.target.value) || 1;
+                            setComboComponents(prev =>
+                              prev.map((c, i) => i === index ? { ...c, quantity: Math.max(0.5, qty) } : c)
+                            );
+                          }}
+                          className="w-14 text-center input py-1 text-sm"
+                          step="0.5"
+                          min="0.5"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setComboComponents(prev => prev.filter((_, i) => i !== index))}
+                          className="w-6 h-6 flex items-center justify-center text-red-400 hover:bg-red-500/20 rounded"
+                        >
+                          <FiX size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-amber-400 mb-3">⚠️ Selecciona productos para agregar al combo</p>
+                )}
+                
+                {/* Buscador y Grid de productos para agregar */}
+                <div className="border-t border-kiosko-border pt-3">
+                  <div className="relative mb-2">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" size={14} />
+                    <input
+                      type="text"
+                      value={comboProductSearch}
+                      onChange={(e) => setComboProductSearch(e.target.value)}
+                      placeholder="Buscar producto..."
+                      className="input w-full pl-9 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 max-h-52 overflow-y-auto">
+                    {simpleProducts
+                      .filter(p => !p.isCombo && !comboComponents.find(c => c.productId === p.id))
+                      .filter(p => comboProductSearch === '' || p.name.toLowerCase().includes(comboProductSearch.toLowerCase()))
+                      .map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            setComboComponents(prev => [...prev, { productId: p.id, quantity: 1, name: p.name }]);
+                            setComboProductSearch('');
+                          }}
+                          className="text-left p-2 text-xs bg-kiosko-card hover:bg-primary-600/20 rounded border border-kiosko-border truncate transition-colors"
+                        >
+                          + {p.name}
+                        </button>
+                      ))}
+                    {simpleProducts
+                      .filter(p => !p.isCombo && !comboComponents.find(c => c.productId === p.id))
+                      .filter(p => comboProductSearch === '' || p.name.toLowerCase().includes(comboProductSearch.toLowerCase()))
+                      .length === 0 && (
+                        <p className="col-span-2 text-center text-sm text-kiosko-muted py-4">No se encontraron productos</p>
+                      )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowComboModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-2 px-4 bg-gradient-to-r from-primary-600 to-amber-600 hover:from-primary-500 hover:to-amber-500 text-white font-medium rounded-lg transition-all"
+                >
+                  🎁 Crear Combo
                 </button>
               </div>
             </form>
