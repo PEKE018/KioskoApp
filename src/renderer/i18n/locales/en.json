@@ -54,7 +54,7 @@
     "cash": "Cash",
     "debit": "Debit",
     "credit": "Credit",
-    "mercadopago": "MercadoPago",
+    "mixed": "Mixed",
     "transfer": "Transfer",
     "credit_account": "Credit Account"
   },

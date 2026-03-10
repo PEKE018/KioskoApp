@@ -1288,133 +1288,39 @@ export default function ProductsPage() {
                 )}
               </div>
 
-              <div className="flex items-center gap-3 p-3 bg-kiosko-bg rounded-lg border border-kiosko-border">
-                <input
-                  type="checkbox"
-                  id="isCigarette"
-                  checked={formData.isCigarette}
-                  onChange={(e) =>
-                    setFormData((d) => ({ ...d, isCigarette: e.target.checked }))
-                  }
-                  className="w-5 h-5 rounded border-kiosko-border text-primary-500 focus:ring-primary-500"
-                  disabled={formData.isCombo}
-                />
-                <label htmlFor="isCigarette" className={`text-sm font-medium cursor-pointer ${formData.isCombo ? 'text-kiosko-muted opacity-50' : ''}`}>
-                  🚬 Es cigarrillo (aplica recargo especial en transferencia)
-                </label>
-              </div>
-
-              {/* Checkbox para Combo/Promoción */}
-              <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary-600/20 to-amber-600/20 rounded-lg border border-primary-500/30">
-                <input
-                  type="checkbox"
-                  id="isCombo"
-                  checked={formData.isCombo}
-                  onChange={(e) => {
-                    setFormData((d) => ({ 
-                      ...d, 
-                      isCombo: e.target.checked,
-                      isCigarette: e.target.checked ? false : d.isCigarette,
-                    }));
-                    if (!e.target.checked) {
-                      setComboComponents([]);
+              {/* Checkboxes en fila: Recargo y Caja Aparte */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-600/20 to-orange-600/20 rounded-lg border border-amber-500/30">
+                  <input
+                    type="checkbox"
+                    id="isCigarette"
+                    checked={formData.isCigarette}
+                    onChange={(e) =>
+                      setFormData((d) => ({ ...d, isCigarette: e.target.checked }))
                     }
-                  }}
-                  className="w-5 h-5 rounded border-kiosko-border text-primary-500 focus:ring-primary-500"
-                />
-                <label htmlFor="isCombo" className="text-sm font-medium cursor-pointer">
-                  🎁 Es Combo/Promoción (al vender, descuenta stock de sus componentes)
-                </label>
-              </div>
-
-              {/* Checkbox para Caja Aparte */}
-              <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 rounded-lg border border-emerald-500/30">
-                <input
-                  type="checkbox"
-                  id="separateCash"
-                  checked={formData.separateCash}
-                  onChange={(e) => setFormData((d) => ({ ...d, separateCash: e.target.checked }))}
-                  className="w-5 h-5 rounded border-kiosko-border text-emerald-500 focus:ring-emerald-500"
-                />
-                <label htmlFor="separateCash" className="text-sm font-medium cursor-pointer">
-                  💰 Caja Aparte (las ventas de este producto van a una caja separada)
-                </label>
-              </div>
-
-              {/* Sección de componentes del combo - SIMPLIFICADA */}
-              {formData.isCombo && (
-                <div className="p-4 bg-kiosko-bg rounded-lg border border-kiosko-border space-y-3">
-                  <h4 className="font-medium text-primary-400">🎁 Componentes del Combo</h4>
-                  
-                  {/* Lista de componentes agregados - más compacta */}
-                  {comboComponents.length > 0 ? (
-                    <div className="space-y-1">
-                      {comboComponents.map((comp, index) => {
-                        const product = simpleProducts.find(p => p.id === comp.productId);
-                        return (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-kiosko-card rounded border border-kiosko-border group">
-                            <span className="flex-1 text-sm truncate">{comp.name || product?.name}</span>
-                            <span className="text-xs text-kiosko-muted">×</span>
-                            <input
-                              type="number"
-                              value={comp.quantity}
-                              onChange={(e) => {
-                                const qty = parseFloat(e.target.value) || 1;
-                                setComboComponents(prev =>
-                                  prev.map((c, i) => i === index ? { ...c, quantity: Math.max(0.5, qty) } : c)
-                                );
-                              }}
-                              className="w-14 text-center input py-1 text-sm"
-                              step="0.5"
-                              min="0.5"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setComboComponents(prev => prev.filter((_, i) => i !== index))}
-                              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-red-400 hover:bg-red-500/20 rounded transition-opacity"
-                            >
-                              <FiX size={14} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-amber-400 py-2">⚠️ Selecciona productos abajo para agregar al combo</p>
-                  )}
-                  
-                  {/* Grid de productos disponibles - más fácil de usar */}
-                  <div className="border-t border-kiosko-border pt-3">
-                    <p className="text-xs text-kiosko-muted mb-2">Click para agregar:</p>
-                    <div className="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto">
-                      {simpleProducts
-                        .filter(p => !comboComponents.find(c => c.productId === p.id))
-                        .slice(0, 20) // Limitar para no saturar
-                        .map(p => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              setComboComponents(prev => [...prev, { productId: p.id, quantity: 1, name: p.name }]);
-                            }}
-                            className="text-left p-2 text-xs bg-kiosko-card hover:bg-primary-600/20 rounded border border-kiosko-border truncate transition-colors"
-                          >
-                            + {p.name}
-                          </button>
-                        ))}
-                    </div>
-                    {simpleProducts.filter(p => !comboComponents.find(c => c.productId === p.id)).length > 20 && (
-                      <p className="text-xs text-kiosko-muted mt-1 text-center">
-                        +{simpleProducts.filter(p => !comboComponents.find(c => c.productId === p.id)).length - 20} más...
-                      </p>
-                    )}
-                  </div>
+                    className="w-5 h-5 rounded border-kiosko-border text-amber-500 focus:ring-amber-500"
+                  />
+                  <label htmlFor="isCigarette" className="text-sm font-medium cursor-pointer">
+                    🚬 Recargo en transferencia
+                  </label>
                 </div>
-              )}
 
-              {/* Stock - solo para productos simples, no combos */}
-              {!formData.isCombo && (
-                <div className={`grid gap-4 ${productSettings.showUnitsPerBox ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 rounded-lg border border-emerald-500/30">
+                  <input
+                    type="checkbox"
+                    id="separateCash"
+                    checked={formData.separateCash}
+                    onChange={(e) => setFormData((d) => ({ ...d, separateCash: e.target.checked }))}
+                    className="w-5 h-5 rounded border-kiosko-border text-emerald-500 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="separateCash" className="text-sm font-medium cursor-pointer">
+                    💰 Caja Aparte
+                  </label>
+                </div>
+              </div>
+
+              {/* Stock */}
+              <div className={`grid gap-4 ${productSettings.showUnitsPerBox ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   <div>
                     <label className="block text-sm font-medium text-kiosko-muted mb-1">
                       Stock actual
@@ -1459,17 +1365,7 @@ export default function ProductsPage() {
                       />
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Info para combos */}
-              {formData.isCombo && (
-                <div className="p-3 bg-primary-600/10 border border-primary-500/30 rounded-lg">
-                  <p className="text-sm text-primary-300">
-                    ℹ️ Los combos no tienen stock propio. El stock se calcula según la disponibilidad de sus componentes.
-                  </p>
-                </div>
-              )}
+              </div>
 
               <div className="flex gap-3 pt-4">
                 <button

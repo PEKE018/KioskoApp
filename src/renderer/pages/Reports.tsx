@@ -147,7 +147,7 @@ export default function ReportsPage() {
       CASH: 'Efectivo',
       DEBIT: 'Débito',
       CREDIT: 'Crédito',
-      MERCADOPAGO: 'MercadoPago',
+      MIXED: 'Mixto',
       TRANSFER: 'Transferencia',
       FIADO: 'Fiado',
       OTHER: 'Otro',

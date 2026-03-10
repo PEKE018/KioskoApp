@@ -18,7 +18,7 @@ import {
   FiUsers,
 } from 'react-icons/fi';
 
-type PaymentMethod = 'CASH' | 'DEBIT' | 'CREDIT' | 'MERCADOPAGO' | 'TRANSFER' | 'FIADO';
+type PaymentMethod = 'CASH' | 'DEBIT' | 'CREDIT' | 'MIXED' | 'TRANSFER' | 'FIADO' | 'OTHER';
 
 interface Customer {
   id: string;
@@ -53,7 +53,7 @@ export default function POSPage() {
   const [selectedCartIndex, setSelectedCartIndex] = useState(-1);
   const [selectedPaymentIndex, setSelectedPaymentIndex] = useState(0);
   
-  const paymentMethodsOrder: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'MERCADOPAGO', 'TRANSFER', 'FIADO'];
+  const paymentMethodsOrder: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'MIXED', 'TRANSFER', 'FIADO', 'OTHER'];
   
   const [newProductForm, setNewProductForm] = useState({
     barcode: '',
@@ -75,6 +75,12 @@ export default function POSPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+
+  // Estados para pago mixto
+  const [mixedMethod1, setMixedMethod1] = useState<'CASH' | 'DEBIT' | 'CREDIT' | 'TRANSFER'>('CASH');
+  const [mixedMethod2, setMixedMethod2] = useState<'CASH' | 'DEBIT' | 'CREDIT' | 'TRANSFER'>('TRANSFER');
+  const [mixedAmount1, setMixedAmount1] = useState<number>(0);
+  const [mixedAmount2, setMixedAmount2] = useState<number>(0);
 
   const scanInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -229,7 +235,7 @@ export default function POSPage() {
       if (e.key === 'F2' && items.length > 0) {
         e.preventDefault();
         setShowPayment(true);
-        setSelectedPaymentIndex(paymentMethodsOrder.indexOf(paymentMethod));
+        setSelectedPaymentIndex(paymentMethodsOrder.indexOf(paymentMethod || 'CASH'));
       }
       // Escape - Cerrar modales
       if (e.key === 'Escape') {
@@ -470,16 +476,33 @@ export default function POSPage() {
       return;
     }
 
+    // Si es pago mixto, verificar que los montos coinciden
+    if (paymentMethod === 'MIXED' && mixedAmount1 + mixedAmount2 !== total) {
+      return;
+    }
+
+    // Preparar datos de pago mixto
+    const mixedPaymentData = paymentMethod === 'MIXED' ? {
+      mixedPaymentMethod1: mixedMethod1,
+      mixedPaymentAmount1: mixedAmount1,
+      mixedPaymentMethod2: mixedMethod2,
+      mixedPaymentAmount2: mixedAmount2,
+    } : undefined;
+
     const success = await processSale(
       user.id, 
       cashRegister.id, 
       transferFees.totalFee,
-      selectedCustomer?.id // Pasar customerId si es fiado
+      selectedCustomer?.id, // Pasar customerId si es fiado
+      mixedPaymentData // Pasar datos de pago mixto
     );
     if (success) {
       setSaleSuccess(true);
       setShowPayment(false);
       setSelectedCustomer(null); // Limpiar cliente seleccionado
+      // Resetear pago mixto
+      setMixedAmount1(0);
+      setMixedAmount2(0);
       // Recargar datos de caja para actualizar salesTotal
       loadCashRegister();
       setTimeout(() => {
@@ -501,7 +524,7 @@ export default function POSPage() {
     { method: 'CASH', icon: FiDollarSign, label: 'Efectivo' },
     { method: 'DEBIT', icon: FiCreditCard, label: 'Débito' },
     { method: 'CREDIT', icon: FiCreditCard, label: 'Crédito' },
-    { method: 'MERCADOPAGO', icon: FiSmartphone, label: 'MP' },
+    { method: 'MIXED', icon: FiDollarSign, label: 'Mixto' },
     { method: 'TRANSFER', icon: FiSmartphone, label: 'Transf.' },
     { method: 'FIADO', icon: FiUsers, label: 'Fiado' },
   ];
@@ -954,6 +977,116 @@ export default function POSPage() {
               </div>
             )}
 
+            {/* Pago mixto */}
+            {paymentMethod === 'MIXED' && (
+              <div className="mb-6 space-y-4">
+                <p className="text-sm text-kiosko-muted text-center">
+                  Divide el pago en dos métodos diferentes
+                </p>
+                
+                {/* Primer método */}
+                <div className="p-4 bg-kiosko-bg rounded-xl border border-kiosko-border">
+                  <label className="block text-sm font-medium text-kiosko-muted mb-2">
+                    Primer pago
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    {(['CASH', 'DEBIT', 'CREDIT', 'TRANSFER'] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          setMixedMethod1(m);
+                          if (m === mixedMethod2) {
+                            setMixedMethod2(m === 'CASH' ? 'TRANSFER' : 'CASH');
+                          }
+                        }}
+                        className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                          mixedMethod1 === m
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-kiosko-border hover:bg-kiosko-border/70'
+                        }`}
+                      >
+                        {m === 'CASH' ? 'Efvo' : m === 'DEBIT' ? 'Déb' : m === 'CREDIT' ? 'Créd' : 'Transf'}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="number"
+                    value={mixedAmount1 || ''}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setMixedAmount1(val);
+                      setMixedAmount2(Math.max(0, total - val));
+                    }}
+                    placeholder="$0"
+                    className="input text-xl text-center font-price"
+                    min={0}
+                    step={100}
+                  />
+                </div>
+
+                {/* Segundo método */}
+                <div className="p-4 bg-kiosko-bg rounded-xl border border-kiosko-border">
+                  <label className="block text-sm font-medium text-kiosko-muted mb-2">
+                    Segundo pago
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    {(['CASH', 'DEBIT', 'CREDIT', 'TRANSFER'] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          setMixedMethod2(m);
+                          if (m === mixedMethod1) {
+                            setMixedMethod1(m === 'CASH' ? 'TRANSFER' : 'CASH');
+                          }
+                        }}
+                        className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                          mixedMethod2 === m
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-kiosko-border hover:bg-kiosko-border/70'
+                        }`}
+                      >
+                        {m === 'CASH' ? 'Efvo' : m === 'DEBIT' ? 'Déb' : m === 'CREDIT' ? 'Créd' : 'Transf'}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="number"
+                    value={mixedAmount2 || ''}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setMixedAmount2(val);
+                      setMixedAmount1(Math.max(0, total - val));
+                    }}
+                    placeholder="$0"
+                    className="input text-xl text-center font-price"
+                    min={0}
+                    step={100}
+                  />
+                </div>
+
+                {/* Resumen */}
+                <div className={`p-3 rounded-lg text-center ${
+                  mixedAmount1 + mixedAmount2 === total
+                    ? 'bg-stock-ok/10 border border-stock-ok/30'
+                    : 'bg-yellow-500/10 border border-yellow-500/30'
+                }`}>
+                  <p className="text-sm text-kiosko-muted">
+                    Total: {formatPrice(mixedAmount1 + mixedAmount2)} / {formatPrice(total)}
+                  </p>
+                  {mixedAmount1 + mixedAmount2 !== total && (
+                    <p className="text-xs text-yellow-500 mt-1">
+                      {mixedAmount1 + mixedAmount2 < total 
+                        ? `Faltan ${formatPrice(total - mixedAmount1 - mixedAmount2)}`
+                        : `Excede por ${formatPrice(mixedAmount1 + mixedAmount2 - total)}`
+                      }
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Error */}
             {error && (
               <div className="mb-4 p-3 bg-stock-critical/10 border border-stock-critical/30 rounded-lg text-center text-stock-critical">
@@ -974,7 +1107,9 @@ export default function POSPage() {
                 disabled={
                   !paymentMethod ||
                   isProcessing ||
-                  (paymentMethod === 'CASH' && amountPaid < total)
+                  (paymentMethod === 'CASH' && amountPaid < total) ||
+                  (paymentMethod === 'MIXED' && mixedAmount1 + mixedAmount2 !== total) ||
+                  (paymentMethod === 'FIADO' && !selectedCustomer)
                 }
                 className="btn-pos flex-1"
               >

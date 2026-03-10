@@ -7,7 +7,14 @@ export interface CartItem {
   subtotal: number;
 }
 
-type PaymentMethod = 'CASH' | 'DEBIT' | 'CREDIT' | 'MERCADOPAGO' | 'TRANSFER' | 'FIADO' | 'OTHER';
+type PaymentMethod = 'CASH' | 'DEBIT' | 'CREDIT' | 'MIXED' | 'TRANSFER' | 'FIADO' | 'OTHER';
+
+export interface MixedPaymentData {
+  mixedPaymentMethod1: string;
+  mixedPaymentAmount1: number;
+  mixedPaymentMethod2: string;
+  mixedPaymentAmount2: number;
+}
 
 interface POSState {
   items: CartItem[];
@@ -36,7 +43,7 @@ interface POSState {
   setPaymentMethod: (method: PaymentMethod) => void;
   setAmountPaid: (amount: number) => void;
   clearCart: () => void;
-  processSale: (userId: string, cashRegisterId?: string, transferFee?: number, customerId?: string) => Promise<boolean>;
+  processSale: (userId: string, cashRegisterId?: string, transferFee?: number, customerId?: string, mixedPayment?: MixedPaymentData) => Promise<boolean>;
   scanBarcode: (barcode: string) => Promise<Product | null>;
   clearNotFoundBarcode: () => void;
   clearMultipleProducts: () => void;
@@ -190,7 +197,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
     });
   },
 
-  processSale: async (userId: string, cashRegisterId?: string, transferFee?: number, customerId?: string) => {
+  processSale: async (userId: string, cashRegisterId?: string, transferFee?: number, customerId?: string, mixedPayment?: MixedPaymentData) => {
     const state = get();
 
     if (state.items.length === 0) {
@@ -228,6 +235,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
         userId,
         cashRegisterId,
         customerId, // Para ventas fiadas
+        // Datos de pago mixto
+        ...(mixedPayment && {
+          mixedPaymentMethod1: mixedPayment.mixedPaymentMethod1,
+          mixedPaymentAmount1: mixedPayment.mixedPaymentAmount1,
+          mixedPaymentMethod2: mixedPayment.mixedPaymentMethod2,
+          mixedPaymentAmount2: mixedPayment.mixedPaymentAmount2,
+        }),
       };
 
       const result = await window.api.sales.create(saleData) as {

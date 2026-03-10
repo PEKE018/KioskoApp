@@ -54,7 +54,7 @@
     "cash": "Efectivo",
     "debit": "Débito",
     "credit": "Crédito",
-    "mercadopago": "MercadoPago",
+    "mixed": "Mixto",
     "transfer": "Transferencia",
     "credit_account": "Fiado"
   },

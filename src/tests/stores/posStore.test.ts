@@ -235,8 +235,8 @@ describe('POS Store', () => {
       store.setPaymentMethod('DEBIT');
       expect(store.getState().paymentMethod).toBe('DEBIT');
       
-      store.setPaymentMethod('MERCADOPAGO');
-      expect(store.getState().paymentMethod).toBe('MERCADOPAGO');
+      store.setPaymentMethod('MIXED');
+      expect(store.getState().paymentMethod).toBe('MIXED');
     });
   });
 });

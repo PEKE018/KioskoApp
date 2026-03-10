@@ -434,23 +434,65 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
 
       // Calcular desglose de caja aparte
       let separateCashTotal = 0;
-      const separateCashProducts: { productId: string; productName: string; quantity: number; total: number }[] = [];
+      const separateCashProducts: { productId: string; productName: string; quantity: number; total: number; paymentMethod: string }[] = [];
 
       for (const sale of salesWithItems) {
         for (const item of sale.items) {
           if (item.product.separateCash) {
             separateCashTotal += item.subtotal;
-            const existing = separateCashProducts.find(p => p.productId === item.product.id);
-            if (existing) {
-              existing.quantity += item.quantity;
-              existing.total += item.subtotal;
+            
+            // Si es pago mixto, crear entradas separadas para cada método
+            if (sale.paymentMethod === 'MIXED' && sale.mixedPaymentMethod1 && sale.mixedPaymentMethod2) {
+              const saleTotal = sale.total;
+              const proportion1 = (sale.mixedPaymentAmount1 || 0) / saleTotal;
+              const proportion2 = (sale.mixedPaymentAmount2 || 0) / saleTotal;
+              const amount1 = item.subtotal * proportion1;
+              const amount2 = item.subtotal * proportion2;
+              
+              // Entrada para el primer método
+              const existing1 = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.mixedPaymentMethod1);
+              if (existing1) {
+                existing1.quantity += item.quantity * proportion1;
+                existing1.total += amount1;
+              } else {
+                separateCashProducts.push({
+                  productId: item.product.id,
+                  productName: item.product.name,
+                  quantity: item.quantity * proportion1,
+                  total: amount1,
+                  paymentMethod: sale.mixedPaymentMethod1
+                });
+              }
+              
+              // Entrada para el segundo método
+              const existing2 = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.mixedPaymentMethod2);
+              if (existing2) {
+                existing2.quantity += item.quantity * proportion2;
+                existing2.total += amount2;
+              } else {
+                separateCashProducts.push({
+                  productId: item.product.id,
+                  productName: item.product.name,
+                  quantity: item.quantity * proportion2,
+                  total: amount2,
+                  paymentMethod: sale.mixedPaymentMethod2
+                });
+              }
             } else {
-              separateCashProducts.push({
-                productId: item.product.id,
-                productName: item.product.name,
-                quantity: item.quantity,
-                total: item.subtotal
-              });
+              // Agrupar por producto Y método de pago normal
+              const existing = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.paymentMethod);
+              if (existing) {
+                existing.quantity += item.quantity;
+                existing.total += item.subtotal;
+              } else {
+                separateCashProducts.push({
+                  productId: item.product.id,
+                  productName: item.product.name,
+                  quantity: item.quantity,
+                  total: item.subtotal,
+                  paymentMethod: sale.paymentMethod
+                });
+              }
             }
           }
         }
@@ -524,23 +566,65 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
       });
 
       let separateCashTotal = 0;
-      const separateCashProducts: { productId: string; productName: string; quantity: number; total: number }[] = [];
+      const separateCashProducts: { productId: string; productName: string; quantity: number; total: number; paymentMethod: string }[] = [];
 
       for (const sale of salesWithItems) {
         for (const item of sale.items) {
           if (item.product.separateCash) {
             separateCashTotal += item.subtotal;
-            const existing = separateCashProducts.find(p => p.productId === item.product.id);
-            if (existing) {
-              existing.quantity += item.quantity;
-              existing.total += item.subtotal;
+            
+            // Si es pago mixto, crear entradas separadas para cada método
+            if (sale.paymentMethod === 'MIXED' && sale.mixedPaymentMethod1 && sale.mixedPaymentMethod2) {
+              const saleTotal = sale.total;
+              const proportion1 = (sale.mixedPaymentAmount1 || 0) / saleTotal;
+              const proportion2 = (sale.mixedPaymentAmount2 || 0) / saleTotal;
+              const amount1 = item.subtotal * proportion1;
+              const amount2 = item.subtotal * proportion2;
+              
+              // Entrada para el primer método
+              const existing1 = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.mixedPaymentMethod1);
+              if (existing1) {
+                existing1.quantity += item.quantity * proportion1;
+                existing1.total += amount1;
+              } else {
+                separateCashProducts.push({
+                  productId: item.product.id,
+                  productName: item.product.name,
+                  quantity: item.quantity * proportion1,
+                  total: amount1,
+                  paymentMethod: sale.mixedPaymentMethod1
+                });
+              }
+              
+              // Entrada para el segundo método
+              const existing2 = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.mixedPaymentMethod2);
+              if (existing2) {
+                existing2.quantity += item.quantity * proportion2;
+                existing2.total += amount2;
+              } else {
+                separateCashProducts.push({
+                  productId: item.product.id,
+                  productName: item.product.name,
+                  quantity: item.quantity * proportion2,
+                  total: amount2,
+                  paymentMethod: sale.mixedPaymentMethod2
+                });
+              }
             } else {
-              separateCashProducts.push({
-                productId: item.product.id,
-                productName: item.product.name,
-                quantity: item.quantity,
-                total: item.subtotal
-              });
+              // Agrupar por producto Y método de pago normal
+              const existing = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.paymentMethod);
+              if (existing) {
+                existing.quantity += item.quantity;
+                existing.total += item.subtotal;
+              } else {
+                separateCashProducts.push({
+                  productId: item.product.id,
+                  productName: item.product.name,
+                  quantity: item.quantity,
+                  total: item.subtotal,
+                  paymentMethod: sale.paymentMethod
+                });
+              }
             }
           }
         }

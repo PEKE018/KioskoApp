@@ -52,6 +52,35 @@ let mainWindow: BrowserWindow | null = null;
 // Detectar modo desarrollo: solo cuando NODE_ENV es explícitamente 'development'
 const isDev = process.env.NODE_ENV === 'development';
 
+// Obtener la ruta del icono
+function getIconPath(): string | undefined {
+  try {
+    let iconPath: string;
+    if (isDev) {
+      iconPath = path.join(__dirname, '../../build/icon.ico');
+    } else {
+      // En producción, probar varias ubicaciones
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'icon.ico'),
+        path.join(__dirname, '../icon.ico'),
+        path.join(app.getAppPath(), 'icon.ico'),
+      ];
+      iconPath = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
+    }
+    
+    if (fs.existsSync(iconPath)) {
+      logger.debug('App', `Icono encontrado en: ${iconPath}`);
+      return iconPath;
+    } else {
+      logger.warn('App', `Icono no encontrado en: ${iconPath}`);
+      return undefined;
+    }
+  } catch (e) {
+    logger.error('App', 'Error obteniendo ruta de icono', e);
+    return undefined;
+  }
+}
+
 // Verificar licencia al inicio
 function checkLicense(): boolean {
   const licenseInfo = validateLicense();
@@ -78,6 +107,7 @@ async function createWindow() {
     title: 'KioskoApp',
     autoHideMenuBar: true,
     backgroundColor: '#0f172a',
+    icon: getIconPath(),
     show: false, // No mostrar hasta que esté lista
   });
 

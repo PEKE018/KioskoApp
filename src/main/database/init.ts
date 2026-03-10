@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { app } from 'electron';
+import { app, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -293,6 +293,241 @@ async function tablesExist(): Promise<boolean> {
   }
 }
 
+/**
+ * Verificar si la BD actual está vacía/con datos de ejemplo
+ * pero hay backups con datos reales disponibles
+ * 
+ * NOTA: Función DESHABILITADA temporalmente (v1.0.14)
+ * Problema: Al restaurar backups viejos, no tienen las columnas nuevas
+ * y causa errores. La restauración debe ser manual desde Configuración.
+ */
+async function checkForEmptyDatabaseWithBackups(): Promise<void> {
+  // DESHABILITADO: Esta funcionalidad causa problemas al restaurar
+  // backups de versiones anteriores que no tienen las columnas nuevas
+  logger.debug('Database', 'Verificación automática de backups deshabilitada');
+  return;
+  
+  try {
+    // Contar productos en la BD actual
+    const productCount = await prisma.product.count();
+    
+    // Si hay más de 50 productos, probablemente tiene datos reales
+    if (productCount > 50) {
+      logger.info('Database', `Base de datos con ${productCount} productos - datos válidos`);
+      return;
+    }
+    
+    // Contar ventas - si hay ventas, hay datos reales
+    const salesCount = await prisma.sale.count();
+    if (salesCount > 0) {
+      logger.info('Database', `Base de datos con ${salesCount} ventas - datos válidos`);
+      return;
+    }
+    
+    // La BD parece vacía o solo tiene datos de ejemplo
+    // Buscar backups que puedan tener datos reales
+    const backupDir = isDev
+      ? path.join(__dirname, '../../../backups')
+      : path.join(app.getPath('userData'), 'backups');
+    
+    const documentsBackupDir = path.join(app.getPath('documents'), 'KioskoApp-Backups');
+    
+    let backupsFound: Array<{ path: string; size: number; mtime: Date; name: string }> = [];
+    
+    // Buscar backups en todas las ubicaciones
+    for (const dir of [backupDir, documentsBackupDir]) {
+      if (fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          if (file.endsWith('.db') && !file.includes('SAFETY')) {
+            const filePath = path.join(dir, file);
+            try {
+              const stats = fs.statSync(filePath);
+              // Solo considerar backups más grandes que 100KB (tienen datos reales)
+              if (stats.size > 100 * 1024) {
+                backupsFound.push({
+                  path: filePath,
+                  size: stats.size,
+                  mtime: stats.mtime,
+                  name: file
+                });
+              }
+            } catch {
+              // Ignorar archivos que no se pueden leer
+            }
+          }
+        }
+      }
+    }
+    
+    if (backupsFound.length === 0) {
+      logger.info('Database', 'No se encontraron backups con datos significativos');
+      return;
+    }
+    
+    // Ordenar por tamaño (el más grande probablemente tiene más datos)
+    backupsFound.sort((a, b) => b.size - a.size);
+    const bestBackup = backupsFound[0];
+    
+    logger.warn('Database', `BD actual tiene solo ${productCount} productos y 0 ventas`);
+    logger.warn('Database', `Backup disponible: ${bestBackup.name} (${(bestBackup.size / 1024).toFixed(0)} KB)`);
+    
+    // Solo mostrar diálogo en producción
+    if (!isDev) {
+      try {
+        const dialogResult = await dialog.showMessageBox({
+          type: 'warning',
+          title: 'Base de datos vacía detectada',
+          message: 'Se detectó que la base de datos actual está vacía o tiene pocos datos.',
+          detail: `Productos actuales: ${productCount}\nVentas actuales: ${salesCount}\n\n` +
+                  `Se encontró un backup que parece tener más datos:\n` +
+                  `${bestBackup.name}\n` +
+                  `Tamaño: ${(bestBackup.size / 1024).toFixed(0)} KB\n` +
+                  `Fecha: ${bestBackup.mtime.toLocaleString()}\n\n` +
+                  '¿Desea restaurar este backup?',
+          buttons: ['Restaurar backup', 'Continuar sin restaurar'],
+          defaultId: 0,
+          cancelId: 1,
+        });
+        
+        if (dialogResult.response === 0) {
+          // Hacer backup de la BD actual por si acaso
+          const safetyBackupPath = path.join(backupDir, `BEFORE-RESTORE-${Date.now()}.db`);
+          if (!fs.existsSync(backupDir)) {
+            fs.mkdirSync(backupDir, { recursive: true });
+          }
+          fs.copyFileSync(dbPath, safetyBackupPath);
+          
+          // Desconectar Prisma antes de reemplazar
+          await prisma.$disconnect();
+          
+          // Restaurar el backup
+          fs.copyFileSync(bestBackup.path, dbPath);
+          
+          // Reconectar
+          await prisma.$connect();
+          
+          logger.info('Database', `Backup restaurado: ${bestBackup.name}`);
+          
+          dialog.showMessageBox({
+            type: 'info',
+            title: 'Backup restaurado',
+            message: 'El backup se restauró correctamente.',
+            detail: 'La aplicación usará los datos del backup. Por favor reinicie la aplicación.',
+          });
+          
+          // Forzar reinicio para cargar los nuevos datos
+          app.relaunch();
+          app.exit(0);
+        }
+      } catch (dialogError) {
+        logger.error('Database', 'Error al mostrar diálogo de restauración', dialogError);
+      }
+    }
+  } catch (error) {
+    logger.error('Database', 'Error al verificar BD vacía', error);
+  }
+}
+
+/**
+ * Detectar posible pérdida de datos verificando si hay backups existentes
+ * Si la BD no existe pero hay backups, es probable que se haya perdido
+ */
+async function checkForPossibleDataLoss(): Promise<boolean> {
+  const backupDir = isDev
+    ? path.join(__dirname, '../../../backups')
+    : path.join(app.getPath('userData'), 'backups');
+  
+  const documentsBackupDir = path.join(app.getPath('documents'), 'KioskoApp-Backups');
+  
+  let backupsFound: string[] = [];
+  
+  // Verificar backups en userData
+  if (fs.existsSync(backupDir)) {
+    const files = fs.readdirSync(backupDir);
+    const dbFiles = files.filter(f => f.endsWith('.db'));
+    if (dbFiles.length > 0) {
+      backupsFound = backupsFound.concat(dbFiles.map(f => path.join(backupDir, f)));
+    }
+  }
+  
+  // Verificar backups en Documentos
+  if (fs.existsSync(documentsBackupDir)) {
+    const files = fs.readdirSync(documentsBackupDir);
+    const dbFiles = files.filter(f => f.endsWith('.db'));
+    if (dbFiles.length > 0) {
+      backupsFound = backupsFound.concat(dbFiles.map(f => path.join(documentsBackupDir, f)));
+    }
+  }
+  
+  if (backupsFound.length > 0) {
+    logger.warn('Database', `Se encontraron ${backupsFound.length} backups pero no existe la base de datos principal`);
+    logger.warn('Database', 'Esto puede indicar pérdida de datos. Backups disponibles:');
+    
+    // Ordenar por fecha de modificación (más reciente primero)
+    const backupInfos = backupsFound.map(p => {
+      try {
+        const stats = fs.statSync(p);
+        return { path: p, mtime: stats.mtime, name: path.basename(p) };
+      } catch {
+        return { path: p, mtime: new Date(0), name: path.basename(p) };
+      }
+    }).sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+    
+    // Mostrar los 5 backups más recientes
+    backupInfos.slice(0, 5).forEach((info, i) => {
+      logger.warn('Database', `  ${i + 1}. ${info.name} (${info.mtime.toLocaleString()})`);
+    });
+    
+    // Mostrar diálogo de alerta al usuario (solo en producción)
+    if (!isDev) {
+      const mostRecentBackup = backupInfos[0];
+      
+      try {
+        const dialogResult = await dialog.showMessageBox({
+          type: 'warning',
+          title: '¡Atención! - Posible pérdida de datos',
+          message: 'Se detectó que puede haber ocurrido una pérdida de datos.',
+          detail: `No se encontró la base de datos principal, pero sí se encontraron ${backupsFound.length} backup(s).\n\n` +
+                  `El backup más reciente es:\n${mostRecentBackup.name}\n` +
+                  `Fecha: ${mostRecentBackup.mtime.toLocaleString()}\n\n` +
+                  '¿Desea restaurar el backup más reciente automáticamente?\n\n' +
+                  'Si elige "No", se creará una base de datos vacía.',
+          buttons: ['Restaurar backup', 'Crear BD vacía'],
+          defaultId: 0,
+          cancelId: 1,
+        });
+        
+        if (dialogResult.response === 0) {
+          // Restaurar el backup más reciente
+          try {
+            fs.copyFileSync(mostRecentBackup.path, dbPath);
+            logger.info('Database', `Backup restaurado automáticamente: ${mostRecentBackup.name}`);
+            
+            dialog.showMessageBox({
+              type: 'info',
+              title: 'Backup restaurado',
+              message: 'El backup se restauró correctamente.',
+              detail: `Se restauró: ${mostRecentBackup.name}\n\nLa aplicación continuará con los datos recuperados.`,
+            });
+            
+            return false; // Ya no hay pérdida de datos
+          } catch (restoreError) {
+            logger.error('Database', 'Error al restaurar backup automáticamente', restoreError);
+            dialog.showErrorBox('Error', `No se pudo restaurar el backup: ${restoreError}`);
+          }
+        }
+      } catch (dialogError) {
+        logger.error('Database', 'Error al mostrar diálogo de pérdida de datos', dialogError);
+      }
+    }
+    
+    return true;
+  }
+  
+  return false;
+}
+
 export async function initDatabase(): Promise<void> {
   try {
     // Verificar si la base de datos existe
@@ -300,6 +535,27 @@ export async function initDatabase(): Promise<void> {
     
     if (!dbExists) {
       logger.info('Database', 'Creando base de datos nueva...');
+      
+      // CRÍTICO: Verificar si hay backups disponibles (posible pérdida de datos)
+      const possibleDataLoss = await checkForPossibleDataLoss();
+      if (possibleDataLoss) {
+        logger.warn('Database', '¡ALERTA! Se detectó posible pérdida de datos. Hay backups disponibles.');
+      }
+    } else {
+      // BD existe - verificar tamaño para detectar corrupción/vacía
+      try {
+        const stats = fs.statSync(dbPath);
+        logger.info('Database', `Base de datos existente encontrada: ${(stats.size / 1024).toFixed(2)} KB`);
+        
+        // Si la BD es muy pequeña (menos de 50KB), podría estar vacía/corrupta
+        // Una BD con productos reales suele ser > 100KB
+        if (stats.size < 50 * 1024) {
+          logger.warn('Database', 'La base de datos parece muy pequeña, verificando backups...');
+          await checkForPossibleDataLoss();
+        }
+      } catch (statError) {
+        logger.error('Database', 'Error al verificar tamaño de BD', statError);
+      }
     }
 
     // Verificar conexión
@@ -312,7 +568,13 @@ export async function initDatabase(): Promise<void> {
     if (!hasTable) {
       await createTables();
     }
-
+    
+    // =====================================================
+    // MIGRACIONES PRIMERO - antes de cualquier consulta Prisma
+    // (Prisma espera que todas las columnas existan)
+    // =====================================================
+    logger.info('Database', 'Ejecutando migraciones de esquema...');
+    
     // Migraciones para campos nuevos (para bases de datos existentes)
     try {
       await prisma.$executeRawUnsafe('ALTER TABLE "AppConfig" ADD COLUMN "showCostPrice" INTEGER NOT NULL DEFAULT 1;');
@@ -336,6 +598,42 @@ export async function initDatabase(): Promise<void> {
       // Columna ya existe, ignorar
     }
 
+    // Migración: agregar campo separateCash a Product (v1.0.10)
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "Product" ADD COLUMN "separateCash" INTEGER NOT NULL DEFAULT 0;');
+      logger.info('Database', 'Columna separateCash agregada a Product');
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column') || e.message?.includes('already exists')) {
+        logger.debug('Database', 'Columna separateCash ya existe en Product');
+      } else {
+        logger.error('Database', 'Error agregando separateCash a Product', e);
+      }
+    }
+
+    // Migración: agregar campo separateCashTotal a CashRegister (v1.0.10)
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "CashRegister" ADD COLUMN "separateCashTotal" REAL NOT NULL DEFAULT 0;');
+      logger.info('Database', 'Columna separateCashTotal agregada a CashRegister');
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column') || e.message?.includes('already exists')) {
+        logger.debug('Database', 'Columna separateCashTotal ya existe en CashRegister');
+      } else {
+        logger.error('Database', 'Error agregando separateCashTotal a CashRegister', e);
+      }
+    }
+
+    // Migración: agregar campo separateCash a SaleItem (v1.0.10)
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "SaleItem" ADD COLUMN "separateCash" INTEGER NOT NULL DEFAULT 0;');
+      logger.info('Database', 'Columna separateCash agregada a SaleItem');
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column') || e.message?.includes('already exists')) {
+        logger.debug('Database', 'Columna separateCash ya existe en SaleItem');
+      } else {
+        logger.error('Database', 'Error agregando separateCash a SaleItem', e);
+      }
+    }
+
     // Migración: crear tabla ComboComponent si no existe
     try {
       await prisma.$executeRawUnsafe(`
@@ -356,6 +654,24 @@ export async function initDatabase(): Promise<void> {
       // Tabla ya existe, ignorar
     }
 
+    // Agregar columna requirePasswordChange si no existe
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN "requirePasswordChange" INTEGER NOT NULL DEFAULT 0;');
+      logger.debug('Database', 'Columna requirePasswordChange agregada a User');
+    } catch (e) {
+      // Columna ya existe, ignorar
+    }
+    
+    logger.info('Database', 'Migraciones de esquema completadas');
+    
+    // =====================================================
+    // FIN MIGRACIONES - ahora podemos usar Prisma normalmente
+    // =====================================================
+    
+    // VERIFICACIÓN: Detectar BD vacía con backups disponibles
+    // Esto captura casos donde la BD existe pero perdió sus datos
+    await checkForEmptyDatabaseWithBackups();
+
     // Crear usuario admin por defecto si no existe
     const adminExists = await prisma.user.findFirst({
       where: { role: 'ADMIN' }
@@ -365,13 +681,6 @@ export async function initDatabase(): Promise<void> {
       // Generar contraseña temporal aleatoria (más segura que admin123)
       const tempPassword = generateSecurePassword();
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
-      
-      // Agregar columna requirePasswordChange si no existe
-      try {
-        await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN "requirePasswordChange" INTEGER NOT NULL DEFAULT 0;');
-      } catch (e) {
-        // Columna ya existe, ignorar
-      }
       
       await prisma.user.create({
         data: {

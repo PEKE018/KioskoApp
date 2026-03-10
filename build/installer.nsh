@@ -5,6 +5,7 @@
 ; INCLUDES NECESARIOS
 ; =============================================
 !include "LogicLib.nsh"
+!include "FileFunc.nsh"
 
 ; =============================================
 ; TEXTOS PERSONALIZADOS EN ESPAÑOL
@@ -66,7 +67,67 @@
   ; Verificar e instalar VC++ Redistributable si es necesario
   !insertmacro CheckVCRedist
   
+  ; CRÍTICO: Crear backup de seguridad de la base de datos existente
+  DetailPrint "Verificando datos existentes..."
+  
+  ; Verificar si existe una base de datos previa
+  IfFileExists "$APPDATA\kiosko-app\kioskoapp.db" 0 NoBackupNeeded
+    DetailPrint "Base de datos existente encontrada. Creando backup de seguridad..."
+    
+    ; Crear directorio de backups si no existe
+    CreateDirectory "$APPDATA\kiosko-app\backups"
+    CreateDirectory "$DOCUMENTS\KioskoApp-Backups"
+    
+    ; Obtener timestamp para nombre único
+    ${GetTime} "" "L" $0 $1 $2 $3 $4 $5 $6
+    StrCpy $R0 "INSTALL-SAFETY-$2$1$0-$4$5$6.db"
+    
+    ; Copiar a carpeta de backups de la app
+    CopyFiles /SILENT "$APPDATA\kiosko-app\kioskoapp.db" "$APPDATA\kiosko-app\backups\$R0"
+    
+    ; Copiar también a Documentos como respaldo adicional
+    CopyFiles /SILENT "$APPDATA\kiosko-app\kioskoapp.db" "$DOCUMENTS\KioskoApp-Backups\$R0"
+    
+    DetailPrint "Backup de seguridad creado: $R0"
+  
+  NoBackupNeeded:
+  
   ; Mensaje en el log de instalación
   DetailPrint "Instalación de KioskoApp completada"
   DetailPrint "Credenciales guardadas en: $APPDATA\kiosko-app"
+!macroend
+
+; =============================================
+; PROTECCIÓN DE DATOS EN DESINSTALACIÓN
+; =============================================
+; Este macro se ejecuta ANTES de desinstalar
+; Crea un backup de seguridad para proteger los datos del usuario
+!macro customUnInstall
+  DetailPrint "Protegiendo datos del usuario antes de desinstalar..."
+  
+  ; Verificar si existe una base de datos
+  IfFileExists "$APPDATA\kiosko-app\kioskoapp.db" 0 NoDataToProtect
+    DetailPrint "Creando backup de seguridad antes de desinstalar..."
+    
+    ; Crear directorio de backups si no existe
+    CreateDirectory "$APPDATA\kiosko-app\backups"
+    CreateDirectory "$DOCUMENTS\KioskoApp-Backups"
+    
+    ; Obtener timestamp para nombre único
+    ${GetTime} "" "L" $0 $1 $2 $3 $4 $5 $6
+    StrCpy $R0 "UNINSTALL-SAFETY-$2$1$0-$4$5$6.db"
+    
+    ; Copiar a carpeta de backups de la app
+    CopyFiles /SILENT "$APPDATA\kiosko-app\kioskoapp.db" "$APPDATA\kiosko-app\backups\$R0"
+    
+    ; Copiar también a Documentos como respaldo adicional (más seguro)
+    CopyFiles /SILENT "$APPDATA\kiosko-app\kioskoapp.db" "$DOCUMENTS\KioskoApp-Backups\$R0"
+    
+    DetailPrint "Backup de seguridad creado en: $DOCUMENTS\KioskoApp-Backups\$R0"
+  
+  NoDataToProtect:
+  
+  ; NUNCA eliminar la carpeta de datos del usuario
+  ; Los datos se mantienen en %APPDATA%\kiosko-app
+  DetailPrint "Los datos del usuario se mantienen en: $APPDATA\kiosko-app"
 !macroend

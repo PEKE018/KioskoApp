@@ -16,7 +16,18 @@ interface SeparateCashProduct {
   productName: string;
   quantity: number;
   total: number;
+  paymentMethod: string;
 }
+
+const paymentMethodLabels: Record<string, string> = {
+  CASH: 'Efectivo',
+  DEBIT: 'Débito',
+  CREDIT: 'Crédito',
+  MIXED: 'Mixto',
+  TRANSFER: 'Transferencia',
+  FIADO: 'Fiado',
+  OTHER: 'Otro',
+};
 
 interface CashRegister {
   id: string;
@@ -44,6 +55,7 @@ export default function CashRegisterPage() {
   const [openAmount, setOpenAmount] = useState('');
   const [closeAmount, setCloseAmount] = useState('');
   const [closeNotes, setCloseNotes] = useState('');
+  const [showSeparateCashModal, setShowSeparateCashModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -229,30 +241,28 @@ export default function CashRegisterPage() {
                 </div>
               </div>
 
-              {/* Desglose de Caja Aparte */}
+              {/* Botón Caja Aparte */}
               {currentCash.separateCashTotal && currentCash.separateCashTotal > 0 && (
-                <div className="p-4 bg-emerald-600/10 border border-emerald-500/30 rounded-lg space-y-3">
+                <button
+                  onClick={() => setShowSeparateCashModal(true)}
+                  className="w-full p-4 bg-emerald-600/10 border border-emerald-500/30 rounded-lg hover:bg-emerald-600/20 transition-colors"
+                >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-emerald-400">💰 Caja Aparte</p>
-                    <p className="text-lg font-bold text-emerald-400 font-price">
-                      {formatPrice(currentCash.separateCashTotal)}
-                    </p>
-                  </div>
-                  {currentCash.separateCashProducts && currentCash.separateCashProducts.length > 0 && (
-                    <div className="space-y-1 pt-2 border-t border-emerald-500/20">
-                      {currentCash.separateCashProducts.map((product) => (
-                        <div key={product.productId} className="flex justify-between text-sm">
-                          <span className="text-kiosko-muted">
-                            {product.productName} x{product.quantity}
-                          </span>
-                          <span className="font-price text-emerald-300">
-                            {formatPrice(product.total)}
-                          </span>
-                        </div>
-                      ))}
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-400">💰</span>
+                      <span className="font-medium text-emerald-400">Caja Aparte</span>
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-300">
+                        {currentCash.separateCashProducts?.length || 0} items
+                      </span>
                     </div>
-                  )}
-                </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-emerald-400 font-price">
+                        {formatPrice(currentCash.separateCashTotal)}
+                      </span>
+                      <span className="text-emerald-400">→</span>
+                    </div>
+                  </div>
+                </button>
               )}
 
               {/* Caja General */}
@@ -631,6 +641,67 @@ export default function CashRegisterPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Caja Aparte */}
+      {showSeparateCashModal && currentCash && currentCash.separateCashProducts && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-kiosko-card border border-kiosko-border rounded-2xl p-6 w-full max-w-lg shadow-2xl animate-enter max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <span>💰</span>
+                Detalle Caja Aparte
+              </h3>
+              <button
+                onClick={() => setShowSeparateCashModal(false)}
+                className="p-2 hover:bg-kiosko-border rounded-lg transition-colors"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+
+            {/* Total arriba */}
+            <div className="p-4 bg-emerald-600/10 border border-emerald-500/30 rounded-lg mb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-emerald-300">Total Caja Aparte</span>
+                <span className="text-2xl font-bold text-emerald-400 font-price">
+                  {formatPrice(currentCash.separateCashTotal || 0)}
+                </span>
+              </div>
+            </div>
+
+            {/* Lista scrolleable */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {currentCash.separateCashProducts.map((product, index) => (
+                <div
+                  key={`${product.productId}-${product.paymentMethod}-${index}`}
+                  className="flex items-center justify-between p-3 bg-kiosko-bg rounded-lg"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{product.productName}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-sm text-kiosko-muted">x{product.quantity}</span>
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-kiosko-primary/20 text-kiosko-primary">
+                        {paymentMethodLabels[product.paymentMethod] || product.paymentMethod}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="font-price text-emerald-400 text-lg">
+                    {formatPrice(product.total)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Botón cerrar */}
+            <button
+              onClick={() => setShowSeparateCashModal(false)}
+              className="mt-4 w-full btn-secondary"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       )}

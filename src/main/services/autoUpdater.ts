@@ -4,8 +4,10 @@
  */
 
 import { autoUpdater } from 'electron-updater';
-import { BrowserWindow, ipcMain, dialog } from 'electron';
+import { BrowserWindow, ipcMain, dialog, app } from 'electron';
 import { logger } from '../utils/logger';
+import fs from 'fs';
+import path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -64,8 +66,22 @@ export function setupAutoUpdater(window: BrowserWindow): void {
     });
   });
 
-  autoUpdater.on('update-downloaded', (info) => {
+  autoUpdater.on('update-downloaded', async (info) => {
     logger.info('Updater', 'Actualización descargada', info);
+    
+    // CRÍTICO: Crear backup preventivo antes de actualizar
+    logger.info('Updater', 'Creando backup preventivo antes de actualizar...');
+    try {
+      const backupResult = await createPreUpdateBackup(info.version);
+      if (backupResult.success) {
+        logger.info('Updater', `Backup preventivo creado: ${backupResult.path}`);
+      } else {
+        logger.warn('Updater', 'No se pudo crear backup preventivo, pero continuando...');
+      }
+    } catch (error) {
+      logger.error('Updater', 'Error en backup preventivo', error);
+    }
+    
     sendToRenderer('update-downloaded', {
       version: info.version,
       releaseNotes: info.releaseNotes,
@@ -169,6 +185,69 @@ export function setUpdateFeedURL(url: string): void {
     url: url,
   });
   logger.info('Updater', `Feed URL configurada: ${url}`);
+}
+
+/**
+ * Crear backup preventivo antes de actualizar
+ * Este backup se guarda con un nombre especial para fácil identificación
+ */
+async function createPreUpdateBackup(newVersion: string): Promise<{ success: boolean; path?: string; error?: string }> {
+  try {
+    const dbPath = path.join(app.getPath('userData'), 'kioskoapp.db');
+    const backupDir = path.join(app.getPath('userData'), 'backups');
+    
+    // Asegurar que existe el directorio de backups
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    
+    // Verificar que la DB existe
+    if (!fs.existsSync(dbPath)) {
+      return { success: false, error: 'Base de datos no encontrada' };
+    }
+    
+    // Nombre especial para backup pre-actualización
+    const now = new Date();
+    const dateStr = now.toISOString()
+      .replace(/[:.]/g, '-')
+      .replace('T', '_')
+      .split('Z')[0];
+    const backupName = `PRE-UPDATE-to-${newVersion}-${dateStr}.db`;
+    const backupPath = path.join(backupDir, backupName);
+    
+    // Copiar archivo de base de datos
+    fs.copyFileSync(dbPath, backupPath);
+    
+    // También copiar archivos WAL y SHM si existen (para integridad)
+    const walPath = dbPath + '-wal';
+    const shmPath = dbPath + '-shm';
+    
+    if (fs.existsSync(walPath)) {
+      fs.copyFileSync(walPath, backupPath + '-wal');
+    }
+    if (fs.existsSync(shmPath)) {
+      fs.copyFileSync(shmPath, backupPath + '-shm');
+    }
+    
+    // También crear una copia en Documentos del usuario como respaldo adicional
+    try {
+      const documentsBackupDir = path.join(app.getPath('documents'), 'KioskoApp-Backups');
+      if (!fs.existsSync(documentsBackupDir)) {
+        fs.mkdirSync(documentsBackupDir, { recursive: true });
+      }
+      const documentsBackupPath = path.join(documentsBackupDir, backupName);
+      fs.copyFileSync(dbPath, documentsBackupPath);
+      logger.info('Updater', `Backup adicional en Documentos: ${documentsBackupPath}`);
+    } catch (docError) {
+      logger.warn('Updater', 'No se pudo crear backup en Documentos', docError);
+    }
+    
+    logger.info('Updater', `Backup pre-actualización creado: ${backupName}`);
+    return { success: true, path: backupPath };
+  } catch (error) {
+    logger.error('Updater', 'Error al crear backup pre-actualización', error);
+    return { success: false, error: String(error) };
+  }
 }
 
 // Para usar con GitHub Releases

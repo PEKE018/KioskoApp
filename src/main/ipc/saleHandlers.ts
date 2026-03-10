@@ -10,13 +10,18 @@ interface SaleItemData {
 
 interface CreateSaleData {
   items: SaleItemData[];
-  paymentMethod: 'CASH' | 'DEBIT' | 'CREDIT' | 'MERCADOPAGO' | 'TRANSFER' | 'FIADO' | 'OTHER';
+  paymentMethod: 'CASH' | 'DEBIT' | 'CREDIT' | 'MIXED' | 'TRANSFER' | 'FIADO' | 'OTHER';
   amountPaid: number;
   discount?: number;
   transferFee?: number;
   userId: string;
   cashRegisterId?: string;
   customerId?: string; // Para ventas fiadas
+  // Pago mixto
+  mixedPaymentMethod1?: string;
+  mixedPaymentAmount1?: number;
+  mixedPaymentMethod2?: string;
+  mixedPaymentAmount2?: number;
 }
 
 export function registerSaleHandlers(ipcMain: IpcMain): void {
@@ -47,6 +52,11 @@ export function registerSaleHandlers(ipcMain: IpcMain): void {
             userId: data.userId,
             cashRegisterId: data.cashRegisterId,
             customerId: data.customerId, // Para ventas fiadas
+            // Pago mixto
+            mixedPaymentMethod1: data.mixedPaymentMethod1,
+            mixedPaymentAmount1: data.mixedPaymentAmount1,
+            mixedPaymentMethod2: data.mixedPaymentMethod2,
+            mixedPaymentAmount2: data.mixedPaymentAmount2,
             items: {
               create: data.items.map((item) => ({
                 productId: item.productId,

@@ -1,8 +1,8 @@
-version: 1.0.5
+version: 1.0.15
 files:
-  - url: KioskoApp-Setup-1.0.5.exe
-    sha512: RFPfVE8ONBDSIu2Csdh4dbYJccjMgiVkz4NYlw9AP/aty3fE+BZamDmRTmBi7yjOWtbHO1VlDXyfls8FJ2mCvw==
-    size: 122895624
-path: KioskoApp-Setup-1.0.5.exe
-sha512: RFPfVE8ONBDSIu2Csdh4dbYJccjMgiVkz4NYlw9AP/aty3fE+BZamDmRTmBi7yjOWtbHO1VlDXyfls8FJ2mCvw==
-releaseDate: '2026-02-20T14:26:21.580Z'
+  - url: KioskoApp-Setup-1.0.15.exe
+    sha512: NEIYjduc+7ssVoWuRF9PovcTKJh1MHD5Eoqr1NOqxr9yTQ7GCYXB3wlYWfGLmVSaamjK1lnM3iVMX35B85omCA==
+    size: 193462787
+path: KioskoApp-Setup-1.0.15.exe
+sha512: NEIYjduc+7ssVoWuRF9PovcTKJh1MHD5Eoqr1NOqxr9yTQ7GCYXB3wlYWfGLmVSaamjK1lnM3iVMX35B85omCA==
+releaseDate: '2026-03-10T23:35:33.578Z'

@@ -135,9 +135,15 @@ model Sale {
   total         Float
   
   // Pago
-  paymentMethod String // CASH | DEBIT | CREDIT | MERCADOPAGO | TRANSFER | FIADO | OTHER
+  paymentMethod String // CASH | DEBIT | CREDIT | MIXED | TRANSFER | FIADO | OTHER
   amountPaid    Float         // Monto que pagó el cliente
   change        Float         @default(0) // Vuelto
+  
+  // Pago mixto (cuando paymentMethod es MIXED)
+  mixedPaymentMethod1 String?  // Primer método de pago
+  mixedPaymentAmount1 Float?   // Monto del primer método
+  mixedPaymentMethod2 String?  // Segundo método de pago
+  mixedPaymentAmount2 Float?   // Monto del segundo método
   
   // Cliente (para fiado)
   customerId    String?
@@ -188,7 +194,7 @@ model SaleItem {
   @@index([productId])
 }
 
-// PaymentMethod: CASH | DEBIT | CREDIT | MERCADOPAGO | TRANSFER | OTHER
+// PaymentMethod: CASH | DEBIT | CREDIT | MIXED | TRANSFER | FIADO | OTHER
 // SaleStatus: COMPLETED | CANCELLED | PENDING
 
 // ============================================
