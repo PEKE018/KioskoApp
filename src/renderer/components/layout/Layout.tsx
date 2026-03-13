@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import UpdateNotification from '../UpdateNotification';
 import {
   FiShoppingCart,
@@ -20,6 +22,13 @@ export default function Layout() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
+  
+  const { settings, loadSettings } = useSettingsStore();
+
+  // Cargar configuración al montar
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleLogout = async () => {
     await logout();
@@ -46,12 +55,12 @@ export default function Layout() {
   const isCashier = user?.role === 'CASHIER';
 
   return (
-    <div className="flex h-screen bg-kiosko-bg">
+    <div className="flex h-screen bg-app-bg">
       {/* Sidebar */}
-      <aside className="w-56 bg-kiosko-card border-r border-kiosko-border flex flex-col">
+      <aside className="w-56 bg-app-card border-r border-app-border flex flex-col">
         {/* Logo */}
-        <div className="p-4 border-b border-kiosko-border">
-          <h1 className="text-xl font-bold text-primary-400">🏪 KioskoApp</h1>
+        <div className="p-4 border-b border-app-border">
+          <h1 className="text-xl font-bold text-primary-400">🏪 {settings.businessName}</h1>
         </div>
 
         {/* Navegación principal */}
@@ -66,14 +75,14 @@ export default function Layout() {
                   ? `flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 ${
                       isActive
                         ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30'
-                        : 'bg-kiosko-bg hover:bg-primary-600/20 text-kiosko-text'
+                        : 'bg-app-bg hover:bg-primary-600/20 text-app-text'
                     }`
                   : `nav-link ${isActive ? 'active' : ''}`
               }
             >
               <item.icon size={isCashier ? 28 : 20} />
               <span className={`flex-1 ${isCashier ? 'text-lg font-medium' : ''}`}>{item.label}</span>
-              <kbd className={`text-kiosko-muted bg-kiosko-bg/50 rounded ${
+              <kbd className={`text-app-muted bg-app-bg/50 rounded ${
                 isCashier ? 'text-sm px-2 py-1' : 'text-xs px-1.5 py-0.5'
               }`}>
                 {item.shortcut}
@@ -84,8 +93,8 @@ export default function Layout() {
           {/* Items solo para administradores */}
           {user?.role === 'ADMIN' && (
             <>
-              <div className="border-t border-kiosko-border my-3" />
-              <p className="text-xs text-kiosko-muted px-4 py-2 uppercase tracking-wider">
+              <div className="border-t border-app-border my-3" />
+              <p className="text-xs text-app-muted px-4 py-2 uppercase tracking-wider">
                 {t('nav.administration')}
               </p>
               {adminItems.map((item) => (
@@ -98,7 +107,7 @@ export default function Layout() {
                 >
                   <item.icon size={20} />
                   <span className="flex-1">{item.label}</span>
-                  <kbd className="text-xs text-kiosko-muted bg-kiosko-bg px-1.5 py-0.5 rounded">
+                  <kbd className="text-xs text-app-muted bg-app-bg px-1.5 py-0.5 rounded">
                     {item.shortcut}
                   </kbd>
                 </NavLink>
@@ -108,14 +117,14 @@ export default function Layout() {
         </nav>
 
         {/* Usuario */}
-        <div className="p-3 border-t border-kiosko-border">
+        <div className="p-3 border-t border-app-border">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
               {user?.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{user?.name}</p>
-              <p className="text-xs text-kiosko-muted">
+              <p className="text-xs text-app-muted">
                 {user?.role === 'ADMIN' ? t('roles.admin') : t('roles.cashier')}
               </p>
             </div>

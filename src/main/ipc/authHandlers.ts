@@ -30,6 +30,166 @@ let currentSession: {
   role: 'ADMIN' | 'CASHIER';
 } | null = null;
 
+interface SeparateCashProductSummary {
+  productId: string;
+  productName: string;
+  quantity: number;
+  total: number;
+  paymentMethod: string;
+}
+
+async function attachCashRegisterUser<T extends { userId: string }>(cashRegister: T | null) {
+  if (!cashRegister) {
+    return null;
+  }
+
+  let userName = 'Usuario desconocido';
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: cashRegister.userId },
+      select: { name: true },
+    });
+
+    if (user?.name) {
+      userName = user.name;
+    }
+  } catch (error) {
+    logger.warn('Auth', 'No se pudo resolver el usuario de la caja', error);
+  }
+
+  return {
+    ...cashRegister,
+    user: { name: userName },
+  };
+}
+
+function calculateSeparateCashBreakdown(
+  salesWithItems: Array<{
+    total: number;
+    paymentMethod: string;
+    mixedPaymentMethod1: string | null;
+    mixedPaymentAmount1: number | null;
+    mixedPaymentMethod2: string | null;
+    mixedPaymentAmount2: number | null;
+    items: Array<{
+      quantity: number;
+      subtotal: number;
+      product: { id: string; name: string; separateCash: boolean };
+    }>;
+  }>
+) {
+  let separateCashTotal = 0;
+  const separateCashProducts: SeparateCashProductSummary[] = [];
+
+  for (const sale of salesWithItems) {
+    for (const item of sale.items) {
+      if (!item.product.separateCash) {
+        continue;
+      }
+
+      separateCashTotal += item.subtotal;
+
+      if (sale.paymentMethod === 'MIXED' && sale.mixedPaymentMethod1 && sale.mixedPaymentMethod2) {
+        const saleTotal = sale.total || 1;
+        const proportion1 = (sale.mixedPaymentAmount1 || 0) / saleTotal;
+        const proportion2 = (sale.mixedPaymentAmount2 || 0) / saleTotal;
+        const amount1 = item.subtotal * proportion1;
+        const amount2 = item.subtotal * proportion2;
+
+        const existing1 = separateCashProducts.find(
+          (product) => product.productId === item.product.id && product.paymentMethod === sale.mixedPaymentMethod1
+        );
+        if (existing1) {
+          existing1.quantity += item.quantity * proportion1;
+          existing1.total += amount1;
+        } else {
+          separateCashProducts.push({
+            productId: item.product.id,
+            productName: item.product.name,
+            quantity: item.quantity * proportion1,
+            total: amount1,
+            paymentMethod: sale.mixedPaymentMethod1,
+          });
+        }
+
+        const existing2 = separateCashProducts.find(
+          (product) => product.productId === item.product.id && product.paymentMethod === sale.mixedPaymentMethod2
+        );
+        if (existing2) {
+          existing2.quantity += item.quantity * proportion2;
+          existing2.total += amount2;
+        } else {
+          separateCashProducts.push({
+            productId: item.product.id,
+            productName: item.product.name,
+            quantity: item.quantity * proportion2,
+            total: amount2,
+            paymentMethod: sale.mixedPaymentMethod2,
+          });
+        }
+
+        continue;
+      }
+
+      const existing = separateCashProducts.find(
+        (product) => product.productId === item.product.id && product.paymentMethod === sale.paymentMethod
+      );
+      if (existing) {
+        existing.quantity += item.quantity;
+        existing.total += item.subtotal;
+      } else {
+        separateCashProducts.push({
+          productId: item.product.id,
+          productName: item.product.name,
+          quantity: item.quantity,
+          total: item.subtotal,
+          paymentMethod: sale.paymentMethod,
+        });
+      }
+    }
+  }
+
+  return {
+    separateCashTotal,
+    separateCashProducts,
+  };
+}
+
+async function buildCashRegisterDetails(cashRegisterId: string) {
+  const cashRegister = await prisma.cashRegister.findUnique({
+    where: { id: cashRegisterId },
+  });
+
+  if (!cashRegister) {
+    return null;
+  }
+
+  const cashRegisterWithUser = await attachCashRegisterUser(cashRegister);
+  const salesWithItems = await prisma.sale.findMany({
+    where: { cashRegisterId },
+    include: {
+      items: {
+        include: {
+          product: {
+            select: { id: true, name: true, separateCash: true },
+          },
+        },
+      },
+    },
+  });
+
+  const { separateCashTotal, separateCashProducts } = calculateSeparateCashBreakdown(salesWithItems);
+  const generalCashTotal = cashRegister.salesTotal - separateCashTotal;
+
+  return {
+    ...cashRegisterWithUser,
+    separateCashTotal,
+    separateCashProducts,
+    generalCashTotal,
+  };
+}
+
 export function registerAuthHandlers(ipcMain: IpcMain): void {
   // Login con usuario y contraseña
   ipcMain.handle('auth:login', async (_, username: string, password: string) => {
@@ -391,12 +551,11 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
           initialAmount,
           userId: currentSession.userId,
         },
-        include: {
-          user: { select: { name: true } },
-        },
       });
 
-      return { success: true, data: cashRegister };
+      const cashRegisterWithUser = await attachCashRegisterUser(cashRegister);
+
+      return { success: true, data: cashRegisterWithUser };
     } catch (error) {
       logger.error('Auth', '\Error opening cash register:', error);
       return { success: false, error: 'Error al abrir caja' };
@@ -404,7 +563,7 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
   });
 
   // Cerrar caja
-  ipcMain.handle('cashRegister:close', async (_, finalAmount: number) => {
+  ipcMain.handle('cashRegister:close', async (_, finalAmount: number, notes?: string) => {
     try {
       if (!currentSession) {
         return { success: false, error: 'No hay sesión activa' };
@@ -418,89 +577,13 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
         return { success: false, error: 'No hay caja abierta' };
       }
 
-      // Obtener ventas con información de productos para calcular caja aparte
-      const salesWithItems = await prisma.sale.findMany({
-        where: { cashRegisterId: openCash.id },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: { id: true, name: true, separateCash: true }
-              }
-            }
-          }
-        }
-      });
-
-      // Calcular desglose de caja aparte
-      let separateCashTotal = 0;
-      const separateCashProducts: { productId: string; productName: string; quantity: number; total: number; paymentMethod: string }[] = [];
-
-      for (const sale of salesWithItems) {
-        for (const item of sale.items) {
-          if (item.product.separateCash) {
-            separateCashTotal += item.subtotal;
-            
-            // Si es pago mixto, crear entradas separadas para cada método
-            if (sale.paymentMethod === 'MIXED' && sale.mixedPaymentMethod1 && sale.mixedPaymentMethod2) {
-              const saleTotal = sale.total;
-              const proportion1 = (sale.mixedPaymentAmount1 || 0) / saleTotal;
-              const proportion2 = (sale.mixedPaymentAmount2 || 0) / saleTotal;
-              const amount1 = item.subtotal * proportion1;
-              const amount2 = item.subtotal * proportion2;
-              
-              // Entrada para el primer método
-              const existing1 = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.mixedPaymentMethod1);
-              if (existing1) {
-                existing1.quantity += item.quantity * proportion1;
-                existing1.total += amount1;
-              } else {
-                separateCashProducts.push({
-                  productId: item.product.id,
-                  productName: item.product.name,
-                  quantity: item.quantity * proportion1,
-                  total: amount1,
-                  paymentMethod: sale.mixedPaymentMethod1
-                });
-              }
-              
-              // Entrada para el segundo método
-              const existing2 = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.mixedPaymentMethod2);
-              if (existing2) {
-                existing2.quantity += item.quantity * proportion2;
-                existing2.total += amount2;
-              } else {
-                separateCashProducts.push({
-                  productId: item.product.id,
-                  productName: item.product.name,
-                  quantity: item.quantity * proportion2,
-                  total: amount2,
-                  paymentMethod: sale.mixedPaymentMethod2
-                });
-              }
-            } else {
-              // Agrupar por producto Y método de pago normal
-              const existing = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.paymentMethod);
-              if (existing) {
-                existing.quantity += item.quantity;
-                existing.total += item.subtotal;
-              } else {
-                separateCashProducts.push({
-                  productId: item.product.id,
-                  productName: item.product.name,
-                  quantity: item.quantity,
-                  total: item.subtotal,
-                  paymentMethod: sale.paymentMethod
-                });
-              }
-            }
-          }
-        }
+      const currentDetails = await buildCashRegisterDetails(openCash.id);
+      if (!currentDetails) {
+        return { success: false, error: 'No se pudo obtener el detalle de caja' };
       }
 
       // El total esperado en caja general NO incluye los productos de caja aparte
-      const generalCashTotal = openCash.salesTotal - separateCashTotal;
-      const expectedAmount = openCash.initialAmount + generalCashTotal;
+      const expectedAmount = openCash.initialAmount + currentDetails.generalCashTotal;
       const difference = finalAmount - expectedAmount;
 
       const cashRegister = await prisma.cashRegister.update({
@@ -509,26 +592,18 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
           status: 'CLOSED',
           finalAmount,
           difference,
+          notes: notes?.trim() || null,
           closedAt: new Date(),
         },
-        include: {
-          user: { select: { name: true } },
-          sales: {
-            include: {
-              items: { include: { product: true } },
-            },
-          },
-        },
       });
+
+      const closedDetails = await buildCashRegisterDetails(cashRegister.id);
 
       // Agregar información de caja aparte al resultado
       return { 
         success: true, 
         data: {
-          ...cashRegister,
-          separateCashTotal,
-          separateCashProducts,
-          generalCashTotal,
+          ...closedDetails,
         }
       };
     } catch (error) {
@@ -542,104 +617,16 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
     try {
       const openCash = await prisma.cashRegister.findFirst({
         where: { status: 'OPEN' },
-        include: {
-          user: { select: { name: true } },
-        },
       });
 
       if (!openCash) {
         return { success: true, data: null };
       }
-
-      // Calcular desglose de caja aparte
-      const salesWithItems = await prisma.sale.findMany({
-        where: { cashRegisterId: openCash.id },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: { id: true, name: true, separateCash: true }
-              }
-            }
-          }
-        }
-      });
-
-      let separateCashTotal = 0;
-      const separateCashProducts: { productId: string; productName: string; quantity: number; total: number; paymentMethod: string }[] = [];
-
-      for (const sale of salesWithItems) {
-        for (const item of sale.items) {
-          if (item.product.separateCash) {
-            separateCashTotal += item.subtotal;
-            
-            // Si es pago mixto, crear entradas separadas para cada método
-            if (sale.paymentMethod === 'MIXED' && sale.mixedPaymentMethod1 && sale.mixedPaymentMethod2) {
-              const saleTotal = sale.total;
-              const proportion1 = (sale.mixedPaymentAmount1 || 0) / saleTotal;
-              const proportion2 = (sale.mixedPaymentAmount2 || 0) / saleTotal;
-              const amount1 = item.subtotal * proportion1;
-              const amount2 = item.subtotal * proportion2;
-              
-              // Entrada para el primer método
-              const existing1 = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.mixedPaymentMethod1);
-              if (existing1) {
-                existing1.quantity += item.quantity * proportion1;
-                existing1.total += amount1;
-              } else {
-                separateCashProducts.push({
-                  productId: item.product.id,
-                  productName: item.product.name,
-                  quantity: item.quantity * proportion1,
-                  total: amount1,
-                  paymentMethod: sale.mixedPaymentMethod1
-                });
-              }
-              
-              // Entrada para el segundo método
-              const existing2 = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.mixedPaymentMethod2);
-              if (existing2) {
-                existing2.quantity += item.quantity * proportion2;
-                existing2.total += amount2;
-              } else {
-                separateCashProducts.push({
-                  productId: item.product.id,
-                  productName: item.product.name,
-                  quantity: item.quantity * proportion2,
-                  total: amount2,
-                  paymentMethod: sale.mixedPaymentMethod2
-                });
-              }
-            } else {
-              // Agrupar por producto Y método de pago normal
-              const existing = separateCashProducts.find(p => p.productId === item.product.id && p.paymentMethod === sale.paymentMethod);
-              if (existing) {
-                existing.quantity += item.quantity;
-                existing.total += item.subtotal;
-              } else {
-                separateCashProducts.push({
-                  productId: item.product.id,
-                  productName: item.product.name,
-                  quantity: item.quantity,
-                  total: item.subtotal,
-                  paymentMethod: sale.paymentMethod
-                });
-              }
-            }
-          }
-        }
-      }
-
-      const generalCashTotal = openCash.salesTotal - separateCashTotal;
+      const currentDetails = await buildCashRegisterDetails(openCash.id);
 
       return { 
         success: true, 
-        data: {
-          ...openCash,
-          separateCashTotal,
-          separateCashProducts,
-          generalCashTotal,
-        }
+        data: currentDetails,
       };
     } catch (error) {
       logger.error('Auth', '\Error getting current cash register:', error);
@@ -647,18 +634,56 @@ export function registerAuthHandlers(ipcMain: IpcMain): void {
     }
   });
 
+  ipcMain.handle('cashRegister:getById', async (_, cashRegisterId: string) => {
+    try {
+      const cashRegisterDetails = await buildCashRegisterDetails(cashRegisterId);
+
+      if (!cashRegisterDetails) {
+        return { success: false, error: 'Caja no encontrada' };
+      }
+
+      return { success: true, data: cashRegisterDetails };
+    } catch (error) {
+      logger.error('Auth', 'Error getting cash register by id:', error);
+      return { success: false, error: 'Error al obtener detalle de caja' };
+    }
+  });
+
+  // Forzar cierre de caja (para casos de inconsistencia después de actualizaciones)
+  ipcMain.handle('cashRegister:forceClose', async () => {
+    try {
+      // Cerrar todas las cajas abiertas
+      const result = await prisma.cashRegister.updateMany({
+        where: { status: 'OPEN' },
+        data: {
+          status: 'CLOSED',
+          closedAt: new Date(),
+          finalAmount: 0,
+          difference: 0,
+        },
+      });
+
+      logger.info('Auth', `Cajas forzadamente cerradas: ${result.count}`);
+      return { success: true, count: result.count };
+    } catch (error) {
+      logger.error('Auth', 'Error forzando cierre de caja:', error);
+      return { success: false, error: 'Error al forzar cierre' };
+    }
+  });
+
   // Historial de cajas
   ipcMain.handle('cashRegister:getHistory', async () => {
     try {
       const history = await prisma.cashRegister.findMany({
-        include: {
-          user: { select: { name: true } },
-        },
         orderBy: { openedAt: 'desc' },
         take: 30,
       });
 
-      return { success: true, data: history };
+      const historyWithUsers = await Promise.all(
+        history.map((cashRegister) => attachCashRegisterUser(cashRegister))
+      );
+
+      return { success: true, data: historyWithUsers };
     } catch (error) {
       logger.error('Auth', '\Error getting cash register history:', error);
       return { success: false, error: 'Error al obtener historial' };

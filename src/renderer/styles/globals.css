@@ -2,14 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Estilos base para KioskoApp */
+/* Estilos base para StockPOS */
 @layer base {
   * {
-    @apply border-kiosko-border;
+    @apply border-app-border;
   }
 
   body {
-    @apply bg-kiosko-bg text-kiosko-text antialiased;
+    @apply bg-app-bg text-app-text antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
@@ -19,20 +19,20 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-kiosko-bg;
+    @apply bg-app-bg;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-kiosko-border rounded-full;
+    @apply bg-app-border rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-kiosko-muted;
+    @apply bg-app-muted;
   }
 
   /* Focus visible para accesibilidad */
   :focus-visible {
-    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-kiosko-bg;
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-app-bg;
   }
 
   /* Números monospace para precios */
@@ -52,9 +52,9 @@
 
   /* Botón secundario */
   .btn-secondary {
-    @apply bg-kiosko-card hover:bg-kiosko-border 
-           text-kiosko-text font-medium px-4 py-2 rounded-lg 
-           border border-kiosko-border
+    @apply bg-app-card hover:bg-app-border 
+           text-app-text font-medium px-4 py-2 rounded-lg 
+           border border-app-border
            transition-colors duration-150;
   }
 
@@ -82,24 +82,24 @@
 
   /* Input de texto */
   .input {
-    @apply w-full bg-kiosko-bg border border-kiosko-border rounded-lg 
-           px-4 py-2 text-kiosko-text placeholder-kiosko-muted
+    @apply w-full bg-app-bg border border-app-border rounded-lg 
+           px-4 py-2 text-app-text placeholder-app-muted
            focus:border-primary-500 focus:ring-1 focus:ring-primary-500
            transition-colors duration-150;
   }
 
   /* Input grande para búsqueda/escaneo */
   .input-scan {
-    @apply w-full bg-kiosko-bg border-2 border-kiosko-border rounded-xl 
-           px-6 py-4 text-2xl font-mono text-center text-kiosko-text 
-           placeholder-kiosko-muted
+    @apply w-full bg-app-bg border-2 border-app-border rounded-xl 
+           px-6 py-4 text-2xl font-mono text-center text-app-text 
+           placeholder-app-muted
            focus:border-primary-500 focus:ring-2 focus:ring-primary-500
            transition-all duration-150;
   }
 
   /* Card */
   .card {
-    @apply bg-kiosko-card border border-kiosko-border rounded-xl p-4;
+    @apply bg-app-card border border-app-border rounded-xl p-4;
   }
 
   /* Badge de stock */
@@ -121,22 +121,22 @@
   }
 
   .table th {
-    @apply text-left text-kiosko-muted font-medium text-sm uppercase tracking-wider 
-           px-4 py-3 border-b border-kiosko-border;
+    @apply text-left text-app-muted font-medium text-sm uppercase tracking-wider 
+           px-4 py-3 border-b border-app-border;
   }
 
   .table td {
-    @apply px-4 py-3 border-b border-kiosko-border;
+    @apply px-4 py-3 border-b border-app-border;
   }
 
   .table tr:hover td {
-    @apply bg-kiosko-bg/50;
+    @apply bg-app-bg/50;
   }
 
   /* Sidebar link */
   .nav-link {
     @apply flex items-center gap-3 px-4 py-3 rounded-lg 
-           text-kiosko-muted hover:text-kiosko-text hover:bg-kiosko-card
+           text-app-muted hover:text-app-text hover:bg-app-card
            transition-colors duration-150;
   }
 
@@ -162,16 +162,16 @@
   }
 
   .modal-content {
-    @apply bg-kiosko-card border border-kiosko-border rounded-2xl 
+    @apply bg-app-card border border-app-border rounded-2xl 
            p-6 max-w-lg w-full shadow-2xl
            max-h-[90vh] overflow-y-auto;
   }
 
   /* Keypad para PIN */
   .keypad-btn {
-    @apply w-16 h-16 rounded-xl bg-kiosko-bg border border-kiosko-border
-           text-2xl font-bold text-kiosko-text
-           hover:bg-kiosko-card active:bg-primary-600
+    @apply w-16 h-16 rounded-xl bg-app-bg border border-app-border
+           text-2xl font-bold text-app-text
+           hover:bg-app-card active:bg-primary-600
            transition-colors duration-100;
   }
 }

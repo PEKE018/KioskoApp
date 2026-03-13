@@ -1,9 +1,9 @@
 {
-  "name": "kiosko-app",
-  "version": "1.0.15",
-  "description": "Sistema de gestión de stock y ventas para kioscos",
+  "name": "stock-pos",
+  "version": "1.1.1",
+  "description": "Sistema de gestión de stock y ventas",
   "main": "dist/main/index.js",
-  "author": "KioskoApp",
+  "author": "StockPOS",
   "license": "MIT",
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\" \"npm run electron:dev\"",
@@ -66,8 +66,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.kioskoapp.desktop",
-    "productName": "KioskoApp",
+    "appId": "com.stockpos.desktop",
+    "productName": "StockPOS",
     "asar": false,
     "directories": {
       "output": "release"
@@ -127,7 +127,7 @@
     "publish": {
       "provider": "github",
       "owner": "PEKE018",
-      "repo": "KioskoApp",
+      "repo": "StockPOS",
       "releaseType": "release"
     }
   }

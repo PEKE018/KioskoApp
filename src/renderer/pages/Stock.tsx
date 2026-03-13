@@ -158,7 +158,7 @@ export default function StockPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-sm text-kiosko-muted">Total productos</p>
+              <p className="text-sm text-app-muted">Total productos</p>
             </div>
           </div>
         </div>
@@ -175,7 +175,7 @@ export default function StockPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-stock-critical">{stats.critical}</p>
-              <p className="text-sm text-kiosko-muted">Stock crítico</p>
+              <p className="text-sm text-app-muted">Stock crítico</p>
             </div>
           </div>
         </div>
@@ -192,7 +192,7 @@ export default function StockPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-stock-low">{stats.low}</p>
-              <p className="text-sm text-kiosko-muted">Stock bajo</p>
+              <p className="text-sm text-app-muted">Stock bajo</p>
             </div>
           </div>
         </div>
@@ -209,7 +209,7 @@ export default function StockPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-stock-ok">{stats.ok}</p>
-              <p className="text-sm text-kiosko-muted">Stock OK</p>
+              <p className="text-sm text-app-muted">Stock OK</p>
             </div>
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function StockPage() {
           className={`px-4 py-2 rounded-lg transition-colors ${
             !showMovements
               ? 'bg-primary-600 text-white'
-              : 'text-kiosko-muted hover:text-white'
+              : 'text-app-muted hover:text-white'
           }`}
         >
           Inventario
@@ -232,7 +232,7 @@ export default function StockPage() {
           className={`px-4 py-2 rounded-lg transition-colors ${
             showMovements
               ? 'bg-primary-600 text-white'
-              : 'text-kiosko-muted hover:text-white'
+              : 'text-app-muted hover:text-white'
           }`}
         >
           Movimientos
@@ -242,7 +242,7 @@ export default function StockPage() {
 
         {/* Búsqueda */}
         <div className="relative w-80">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" />
           <input
             type="text"
             value={searchQuery}
@@ -273,7 +273,7 @@ export default function StockPage() {
                 <tr key={product.id}>
                   <td>
                     <p className="font-medium">{product.name}</p>
-                    <p className="text-sm text-kiosko-muted font-mono">
+                    <p className="text-sm text-app-muted font-mono">
                       {product.barcode}
                     </p>
                   </td>
@@ -299,7 +299,7 @@ export default function StockPage() {
                       {product.stock}
                     </span>
                   </td>
-                  <td className="text-center text-kiosko-muted">
+                  <td className="text-center text-app-muted">
                     {product.minStock}
                   </td>
                   <td className="text-right font-price">
@@ -333,12 +333,12 @@ export default function StockPage() {
             <tbody>
               {movements.map((mov) => (
                 <tr key={mov.id}>
-                  <td className="text-sm text-kiosko-muted">
+                  <td className="text-sm text-app-muted">
                     {formatDate(mov.createdAt)}
                   </td>
                   <td>
                     <p className="font-medium">{mov.product.name}</p>
-                    <p className="text-xs text-kiosko-muted font-mono">
+                    <p className="text-xs text-app-muted font-mono">
                       {mov.product.barcode}
                     </p>
                   </td>
@@ -373,12 +373,12 @@ export default function StockPage() {
                       )}
                       {Math.abs(mov.quantity)}
                     </span>
-                    <span className="text-xs text-kiosko-muted">
+                    <span className="text-xs text-app-muted">
                       {mov.stockBefore} → {mov.stockAfter}
                     </span>
                   </td>
                   <td className="text-sm max-w-xs truncate">{mov.reason}</td>
-                  <td className="text-sm text-kiosko-muted">{mov.user.name}</td>
+                  <td className="text-sm text-app-muted">{mov.user.name}</td>
                 </tr>
               ))}
             </tbody>
@@ -392,16 +392,16 @@ export default function StockPage() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-4">Ajustar Stock</h2>
 
-            <div className="mb-4 p-3 bg-kiosko-bg rounded-lg">
+            <div className="mb-4 p-3 bg-app-bg rounded-lg">
               <p className="font-medium">{selectedProduct.name}</p>
-              <p className="text-sm text-kiosko-muted">
+              <p className="text-sm text-app-muted">
                 Stock actual: <strong>{selectedProduct.stock}</strong>
               </p>
             </div>
 
             <form onSubmit={handleAdjust} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Nueva cantidad
                 </label>
                 <input
@@ -418,7 +418,7 @@ export default function StockPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Razón del ajuste *
                 </label>
                 <input

@@ -1,5 +1,5 @@
 /**
- * Sistema de Licencias para KioskoApp
+ * Sistema de Licencias para StockPOS
  * Implementa validación y activación de licencias
  */
 
@@ -11,7 +11,7 @@ import { logger } from '../utils/logger';
 
 // Configuración
 const LICENSE_FILE_NAME = 'license.key';
-const SECRET_KEY = 'KioskoApp2024SecretKey!@#$'; // En producción real, usar env variable
+const SECRET_KEY = 'StockPOS2024SecretKey!@#$'; // En producción real, usar env variable
 const TRIAL_DAYS = 15;
 
 interface LicenseData {
@@ -39,7 +39,7 @@ function getMachineId(): string {
   const cpus = require('os').cpus();
   const cpuModel = cpus.length > 0 ? cpus[0].model : 'unknown';
   
-  const raw = `${hostname}-${platform}-${cpuModel}-KioskoApp`;
+  const raw = `${hostname}-${platform}-${cpuModel}-StockPOS`;
   return crypto.createHash('sha256').update(raw).digest('hex').substring(0, 32);
 }
 

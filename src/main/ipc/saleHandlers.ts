@@ -143,12 +143,27 @@ export function registerSaleHandlers(ipcMain: IpcMain): void {
           }
         }
 
-        // 3. Actualizar total de ventas en caja (si es efectivo)
-        if (data.cashRegisterId && data.paymentMethod === 'CASH') {
+        // 3. Actualizar total de ventas en caja con el monto que realmente entra en caja
+        let cashRegisterIncrement = 0;
+
+        if (data.paymentMethod === 'CASH') {
+          cashRegisterIncrement = total;
+        }
+
+        if (data.paymentMethod === 'MIXED') {
+          if (data.mixedPaymentMethod1 === 'CASH') {
+            cashRegisterIncrement += data.mixedPaymentAmount1 || 0;
+          }
+          if (data.mixedPaymentMethod2 === 'CASH') {
+            cashRegisterIncrement += data.mixedPaymentAmount2 || 0;
+          }
+        }
+
+        if (data.cashRegisterId && cashRegisterIncrement > 0) {
           await tx.cashRegister.update({
             where: { id: data.cashRegisterId },
             data: {
-              salesTotal: { increment: total },
+              salesTotal: { increment: cashRegisterIncrement },
             },
           });
         }

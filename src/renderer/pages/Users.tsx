@@ -163,7 +163,7 @@ export default function UsersPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Usuarios</h1>
-          <p className="text-kiosko-muted">
+          <p className="text-app-muted">
             Gestión de usuarios y permisos
           </p>
         </div>
@@ -187,14 +187,14 @@ export default function UsersPage() {
               <div className="flex items-center gap-3">
                 <div
                   className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
-                    user.role === 'ADMIN' ? 'bg-primary-600' : 'bg-kiosko-muted'
+                    user.role === 'ADMIN' ? 'bg-primary-600' : 'bg-app-muted'
                   }`}
                 >
                   {user.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <p className="font-bold text-lg">{user.name}</p>
-                  <p className="text-sm text-kiosko-muted">@{user.username}</p>
+                  <p className="text-sm text-app-muted">@{user.username}</p>
                 </div>
               </div>
 
@@ -202,13 +202,13 @@ export default function UsersPage() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => openModal(user)}
-                    className="p-2 rounded-lg hover:bg-kiosko-bg text-kiosko-muted hover:text-primary-400 transition-colors"
+                    className="p-2 rounded-lg hover:bg-app-bg text-app-muted hover:text-primary-400 transition-colors"
                   >
                     <FiEdit2 size={18} />
                   </button>
                   <button
                     onClick={() => handleDelete(user)}
-                    className="p-2 rounded-lg hover:bg-kiosko-bg text-kiosko-muted hover:text-stock-critical transition-colors"
+                    className="p-2 rounded-lg hover:bg-app-bg text-app-muted hover:text-stock-critical transition-colors"
                   >
                     <FiTrash2 size={18} />
                   </button>
@@ -223,7 +223,7 @@ export default function UsersPage() {
                   Administrador
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-sm text-kiosko-muted bg-kiosko-bg px-2 py-1 rounded-full">
+                <span className="flex items-center gap-1 text-sm text-app-muted bg-app-bg px-2 py-1 rounded-full">
                   <FiUser size={14} />
                   Cajero
                 </span>
@@ -236,7 +236,7 @@ export default function UsersPage() {
               )}
             </div>
 
-            <p className="text-xs text-kiosko-muted">
+            <p className="text-xs text-app-muted">
               Creado: {formatDate(user.createdAt)}
             </p>
           </div>
@@ -245,7 +245,7 @@ export default function UsersPage() {
         {/* Card para agregar */}
         <button
           onClick={() => openModal()}
-          className="card border-dashed border-2 flex flex-col items-center justify-center py-8 text-kiosko-muted hover:text-primary-400 hover:border-primary-400 transition-colors min-h-[180px]"
+          className="card border-dashed border-2 flex flex-col items-center justify-center py-8 text-app-muted hover:text-primary-400 hover:border-primary-400 transition-colors min-h-[180px]"
         >
           <FiPlus size={32} className="mb-2" />
           <span>Agregar usuario</span>
@@ -269,7 +269,7 @@ export default function UsersPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Nombre completo *
                   </label>
                   <input
@@ -284,7 +284,7 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Usuario *
                   </label>
                   <input
@@ -301,7 +301,7 @@ export default function UsersPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     {editingUser ? 'Nueva contraseña' : 'Contraseña *'}
                   </label>
                   <input
@@ -316,7 +316,7 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     PIN (4 dígitos)
                   </label>
                   <input
@@ -336,7 +336,7 @@ export default function UsersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-2">
+                <label className="block text-sm font-medium text-app-muted mb-2">
                   Rol
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -346,12 +346,12 @@ export default function UsersPage() {
                     className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
                       formData.role === 'CASHIER'
                         ? 'border-primary-500 bg-primary-500/20'
-                        : 'border-kiosko-border hover:border-primary-500/50'
+                        : 'border-app-border hover:border-primary-500/50'
                     }`}
                   >
                     <FiUser size={24} />
                     <span className="font-medium">Cajero</span>
-                    <span className="text-xs text-kiosko-muted text-center">
+                    <span className="text-xs text-app-muted text-center">
                       Ventas y carga de stock
                     </span>
                   </button>
@@ -361,12 +361,12 @@ export default function UsersPage() {
                     className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
                       formData.role === 'ADMIN'
                         ? 'border-primary-500 bg-primary-500/20'
-                        : 'border-kiosko-border hover:border-primary-500/50'
+                        : 'border-app-border hover:border-primary-500/50'
                     }`}
                   >
                     <FiShield size={24} />
                     <span className="font-medium">Administrador</span>
-                    <span className="text-xs text-kiosko-muted text-center">
+                    <span className="text-xs text-app-muted text-center">
                       Acceso completo
                     </span>
                   </button>

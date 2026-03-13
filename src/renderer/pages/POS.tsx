@@ -147,6 +147,26 @@ export default function POSPage() {
     loadCashRegister();
   }, [fetchProducts, fetchCategories, loadCashRegister]);
 
+  useEffect(() => {
+    const refreshCashRegister = () => {
+      loadCashRegister();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadCashRegister();
+      }
+    };
+
+    window.addEventListener('focus', refreshCashRegister);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', refreshCashRegister);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadCashRegister]);
+
   // Focus en input de escaneo
   useEffect(() => {
     if (!showPayment && !showSearch && !showAddProduct && !multipleProducts) {
@@ -530,21 +550,21 @@ export default function POSPage() {
   ];
 
   return (
-    <div className="h-full flex relative">
+    <div className="relative flex h-full flex-col xl:flex-row">
       {/* Overlay caja cerrada */}
       {!cashLoading && !cashRegister && (
-        <div className="absolute inset-0 bg-kiosko-bg/95 z-40 flex items-center justify-center backdrop-blur-sm">
-          <div className="bg-kiosko-card border border-kiosko-border rounded-2xl p-8 max-w-md text-center shadow-2xl">
+        <div className="absolute inset-0 bg-app-bg/95 z-40 flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-app-card border border-app-border rounded-2xl p-8 max-w-md text-center shadow-2xl">
             <div className="w-20 h-20 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <FiAlertCircle size={48} className="text-yellow-500" />
             </div>
             <h2 className="text-2xl font-bold mb-2">Caja Cerrada</h2>
-            <p className="text-kiosko-muted mb-6">
+            <p className="text-app-muted mb-6">
               Para comenzar a vender, primero debes abrir la caja registradora.
             </p>
             <button
               onClick={() => navigate('/cash')}
-              className="w-full bg-kiosko-success hover:bg-kiosko-success/90 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-kiosko-success/25"
+              className="w-full bg-app-success hover:bg-app-success/90 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-app-success/25"
             >
               <FiDollarSign size={20} />
               <span>Ir a Abrir Caja</span>
@@ -554,7 +574,7 @@ export default function POSPage() {
       )}
 
       {/* Panel izquierdo - Carrito */}
-      <div className="flex-1 flex flex-col p-4">
+      <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
         {/* Input de escaneo */}
         <form onSubmit={handleScan} className="mb-4">
           <input
@@ -574,7 +594,7 @@ export default function POSPage() {
             <FiCheck className="text-stock-ok text-xl" />
             <div className="flex-1">
               <p className="font-medium">{lastScannedProduct.name}</p>
-              <p className="text-sm text-kiosko-muted">
+              <p className="text-sm text-app-muted">
                 {formatPrice(lastScannedProduct.price)}
               </p>
             </div>
@@ -591,7 +611,7 @@ export default function POSPage() {
             {notFoundBarcode && (
               <button
                 onClick={handleAddNewProduct}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-4 bg-kiosko-primary hover:bg-kiosko-primary/90 text-white rounded-lg transition-colors"
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-4 bg-app-primary hover:bg-app-primary/90 text-white rounded-lg transition-colors"
               >
                 <FiPackage size={18} />
                 ¿Desea agregarlo?
@@ -603,7 +623,7 @@ export default function POSPage() {
         {/* Lista de items */}
         <div className="flex-1 overflow-y-auto">
           {items.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-kiosko-muted">
+            <div className="h-full flex items-center justify-center text-app-muted">
               <div className="text-center">
                 <FiSearch size={48} className="mx-auto mb-4 opacity-50" />
                 <p className="text-lg">Escanee un producto para comenzar</p>
@@ -618,14 +638,14 @@ export default function POSPage() {
                   className={`card flex items-center gap-4 animate-enter cursor-pointer transition-all ${
                     selectedCartIndex === index 
                       ? 'ring-2 ring-primary-400 bg-primary-400/10' 
-                      : 'hover:bg-kiosko-bg'
+                      : 'hover:bg-app-bg'
                   }`}
                   onClick={() => setSelectedCartIndex(index)}
                 >
                   {/* Info del producto */}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{item.product.name}</p>
-                    <p className="text-sm text-kiosko-muted">
+                    <p className="text-sm text-app-muted">
                       {formatPrice(item.product.price)} c/u
                     </p>
                   </div>
@@ -634,7 +654,7 @@ export default function POSPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => decrementQuantity(item.product.id)}
-                      className="w-8 h-8 rounded-lg bg-kiosko-bg border border-kiosko-border flex items-center justify-center hover:bg-kiosko-border transition-colors"
+                      className="w-8 h-8 rounded-lg bg-app-bg border border-app-border flex items-center justify-center hover:bg-app-border transition-colors"
                     >
                       <FiMinus size={16} />
                     </button>
@@ -643,7 +663,7 @@ export default function POSPage() {
                     </span>
                     <button
                       onClick={() => incrementQuantity(item.product.id)}
-                      className="w-8 h-8 rounded-lg bg-kiosko-bg border border-kiosko-border flex items-center justify-center hover:bg-kiosko-border transition-colors"
+                      className="w-8 h-8 rounded-lg bg-app-bg border border-app-border flex items-center justify-center hover:bg-app-border transition-colors"
                     >
                       <FiPlus size={16} />
                     </button>
@@ -671,30 +691,30 @@ export default function POSPage() {
       </div>
 
       {/* Panel derecho - Total y pago */}
-      <div className="w-80 xl:w-96 min-w-[280px] bg-kiosko-card border-l border-kiosko-border flex flex-col shrink-0">
+      <div className="flex w-full shrink-0 flex-col border-t border-app-border bg-app-card xl:min-h-0 xl:w-80 xl:min-w-[280px] xl:border-l xl:border-t-0 2xl:w-96">
         {/* Indicador de caja */}
         {cashRegister && (
-          <div className="px-4 py-2 bg-stock-ok/10 border-b border-stock-ok/30 flex items-center justify-between text-sm">
+          <div className="flex flex-col gap-1 border-b border-stock-ok/30 bg-stock-ok/10 px-4 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
             <span className="text-stock-ok flex items-center gap-1">
               <span className="w-2 h-2 bg-stock-ok rounded-full animate-pulse"></span>
               Caja abierta
             </span>
-            <span className="text-kiosko-muted">
-              Ventas: {formatPrice(cashRegister.salesTotal)}
+            <span className="text-app-muted">
+              En caja: {formatPrice(cashRegister.salesTotal)}
             </span>
           </div>
         )}
         
         {/* Resumen */}
-        <div className="p-6 flex-1">
+        <div className="flex-1 p-4 sm:p-6 xl:min-h-0">
           <div className="space-y-4">
             <div className="flex justify-between text-lg">
-              <span className="text-kiosko-muted">Productos</span>
+              <span className="text-app-muted">Productos</span>
               <span className="font-medium">{itemsCount}</span>
             </div>
 
             <div className="flex justify-between text-lg">
-              <span className="text-kiosko-muted">Subtotal</span>
+              <span className="text-app-muted">Subtotal</span>
               <span className="font-medium font-price">{formatPrice(subtotal)}</span>
             </div>
 
@@ -707,9 +727,9 @@ export default function POSPage() {
               </div>
             )}
 
-            <div className="border-t border-kiosko-border pt-4">
+            <div className="border-t border-app-border pt-4">
               <div className="flex flex-col items-end">
-                <span className="text-lg text-kiosko-muted">TOTAL</span>
+                <span className="text-lg text-app-muted">TOTAL</span>
                 <span className="text-3xl xl:text-4xl font-extrabold text-primary-400 font-price">
                   {formatPrice(total)}
                 </span>
@@ -719,7 +739,7 @@ export default function POSPage() {
         </div>
 
         {/* Botones de acción */}
-        <div className="p-4 border-t border-kiosko-border space-y-3">
+        <div className="p-4 border-t border-app-border space-y-3">
           <button
             onClick={() => setShowPayment(true)}
             disabled={items.length === 0}
@@ -738,7 +758,7 @@ export default function POSPage() {
         </div>
 
         {/* Atajos de teclado */}
-        <div className="p-3 border-t border-kiosko-border text-xs text-kiosko-muted">
+        <div className="p-3 border-t border-app-border text-xs text-app-muted">
           <div className="flex justify-between mb-1">
             <span>F2 Cobrar</span>
             <span>F4 Buscar</span>
@@ -755,25 +775,47 @@ export default function POSPage() {
       {/* Modal de búsqueda */}
       {showSearch && (
         <div className="modal-overlay" onClick={() => setShowSearch(false)}>
-          <div className="modal-content max-w-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold mb-4">Buscar Producto</h2>
+          <div 
+            className="w-full max-w-2xl bg-app-card border border-app-border rounded-2xl shadow-2xl overflow-hidden animate-enter" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-5 border-b border-app-border bg-gradient-to-r from-primary-600/10 to-transparent">
+              <h2 className="text-xl font-bold flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center">
+                  <FiSearch className="text-primary-400" size={20} />
+                </div>
+                Buscar Producto
+              </h2>
+            </div>
 
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Buscar por nombre o código..."
-              className="input mb-4"
-              autoFocus
-            />
+            {/* Search Input */}
+            <div className="p-4 border-b border-app-border/50">
+              <div className="relative">
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted" size={20} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Buscar por nombre o código..."
+                  className="w-full bg-app-bg border-2 border-app-border rounded-xl pl-12 pr-4 py-3.5 text-lg 
+                             focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                  autoFocus
+                />
+              </div>
+            </div>
 
-            <div className="max-h-96 overflow-y-auto">
+            {/* Results */}
+            <div className="max-h-[400px] overflow-y-auto p-4">
               {searchResults.length === 0 ? (
-                <p className="text-center text-kiosko-muted py-8">
-                  {searchQuery.length < 2
-                    ? 'Escriba al menos 2 caracteres para buscar'
-                    : 'No se encontraron productos'}
-                </p>
+                <div className="text-center py-12">
+                  <FiPackage className="mx-auto text-app-muted/50 mb-3" size={48} />
+                  <p className="text-app-muted">
+                    {searchQuery.length < 2
+                      ? 'Escriba al menos 2 caracteres para buscar'
+                      : 'No se encontraron productos'}
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {searchResults.map((product, index) => (
@@ -781,50 +823,77 @@ export default function POSPage() {
                       key={product.id}
                       onClick={() => handleSelectProduct(product)}
                       onMouseEnter={() => setSelectedSearchIndex(index)}
-                      className={`w-full card flex items-center gap-4 transition-all text-left ${
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-150 text-left group ${
                         selectedSearchIndex === index
-                          ? 'ring-2 ring-primary-400 bg-primary-400/10'
-                          : 'hover:bg-kiosko-bg'
+                          ? 'border-primary-500 bg-primary-500/10 shadow-lg shadow-primary-500/10'
+                          : 'border-transparent bg-app-bg hover:border-app-border hover:bg-app-bg/80'
                       }`}
                     >
-                      <div className="flex-1">
-                        <p className="font-medium">{product.name}</p>
-                        <p className="text-sm text-kiosko-muted">
+                      {/* Product Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-semibold text-lg truncate ${
+                          selectedSearchIndex === index ? 'text-primary-400' : 'text-app-text'
+                        }`}>
+                          {product.name}
+                        </p>
+                        <p className="text-sm text-app-muted font-mono mt-0.5">
                           {product.barcode}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg font-price">
+
+                      {/* Price & Stock */}
+                      <div className="text-right flex-shrink-0">
+                        <p className={`font-bold text-xl font-price ${
+                          selectedSearchIndex === index ? 'text-primary-400' : 'text-stock-ok'
+                        }`}>
                           {formatPrice(product.price)}
                         </p>
-                        <p
-                          className={`text-sm ${
-                            product.stock <= product.minStock
-                              ? 'text-stock-critical'
-                              : 'text-kiosko-muted'
-                          }`}
-                        >
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium mt-1 px-2 py-0.5 rounded-full ${
+                          product.stock <= product.minStock
+                            ? 'bg-stock-critical/20 text-stock-critical'
+                            : product.stock <= product.minStock * 2
+                              ? 'bg-stock-low/20 text-stock-low'
+                              : 'bg-stock-ok/20 text-stock-ok'
+                        }`}>
                           Stock: {product.stock}
-                        </p>
+                        </span>
                       </div>
-                      <FiPlus className="text-primary-400" size={24} />
+
+                      {/* Add Icon */}
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${
+                        selectedSearchIndex === index
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-app-border text-app-muted group-hover:bg-primary-500/20 group-hover:text-primary-400'
+                      }`}>
+                        <FiPlus size={22} />
+                      </div>
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="flex gap-2 mt-4">
+            {/* Footer */}
+            <div className="p-4 border-t border-app-border bg-app-bg/50">
               <button
                 onClick={() => setShowSearch(false)}
-                className="btn-secondary flex-1"
+                className="w-full btn-secondary py-3 text-base font-medium"
               >
                 Cerrar (Esc)
               </button>
+              <p className="text-xs text-app-muted text-center mt-3 flex items-center justify-center gap-4">
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-app-border text-app-text">↑</kbd>
+                  <kbd className="px-1.5 py-0.5 rounded bg-app-border text-app-text">↓</kbd>
+                  Navegar
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-2 py-0.5 rounded bg-app-border text-app-text">Enter</kbd>
+                  Seleccionar
+                </span>
+              </p>
             </div>
-            <p className="text-xs text-kiosko-muted text-center mt-2">
-              ↑↓ Navegar • Enter Seleccionar
-            </p>
           </div>
         </div>
       )}
@@ -832,15 +901,15 @@ export default function POSPage() {
       {/* Modal de pago */}
       {showPayment && (
         <div className="modal-overlay" onClick={() => setShowPayment(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-h-[90vh] w-full max-w-3xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-4">Método de Pago</h2>
 
             {/* Total a pagar */}
-            <div className="text-center mb-6 p-4 bg-kiosko-bg rounded-xl">
+            <div className="text-center mb-6 p-4 bg-app-bg rounded-xl">
               {paymentMethod === 'TRANSFER' && transferFees.totalFee > 0 ? (
                 <>
-                  <p className="text-kiosko-muted mb-1">Subtotal</p>
-                  <p className="text-lg text-kiosko-muted font-price line-through">
+                  <p className="text-app-muted mb-1">Subtotal</p>
+                  <p className="text-lg text-app-muted font-price line-through">
                     {formatPrice(total)}
                   </p>
                   {transferFees.percentageFee > 0 && (
@@ -853,14 +922,14 @@ export default function POSPage() {
                       + 🚬 Recargo cigarrillos ({cigaretteTransferFeePercent}%): {formatPrice(transferFees.cigaretteFee)}
                     </p>
                   )}
-                  <p className="text-kiosko-muted mb-1 mt-2">Total con recargo</p>
+                  <p className="text-app-muted mb-1 mt-2">Total con recargo</p>
                   <p className="text-total text-primary-400 font-price">
                     {formatPrice(finalTotal)}
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-kiosko-muted mb-1">Total a pagar</p>
+                  <p className="text-app-muted mb-1">Total a pagar</p>
                   <p className="text-total text-primary-400 font-price">
                     {formatPrice(total)}
                   </p>
@@ -869,7 +938,7 @@ export default function POSPage() {
             </div>
 
             {/* Métodos de pago */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {paymentMethods.map(({ method, icon: Icon, label }, index) => (
                 <button
                   key={method}
@@ -884,10 +953,10 @@ export default function POSPage() {
                       setSelectedCustomer(null);
                     }
                   }}
-                  className={`p-4 rounded-xl border-2 transition-all ${
+                  className={`rounded-xl border-2 p-3 transition-all sm:p-4 ${
                     paymentMethod === method
                       ? 'border-primary-500 bg-primary-500/20 ring-2 ring-primary-400'
-                      : 'border-kiosko-border hover:border-primary-500/50'
+                      : 'border-app-border hover:border-primary-500/50'
                   }`}
                 >
                   <Icon size={24} className="mx-auto mb-2" />
@@ -898,11 +967,11 @@ export default function POSPage() {
 
             {/* Selección de cliente (solo fiado) */}
             {paymentMethod === 'FIADO' && (
-              <div className="mb-6 p-4 bg-kiosko-bg rounded-xl border border-kiosko-border">
+              <div className="mb-6 p-4 bg-app-bg rounded-xl border border-app-border">
                 {selectedCustomer ? (
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-kiosko-muted">Cliente</p>
+                      <p className="text-sm text-app-muted">Cliente</p>
                       <p className="font-bold text-lg">{selectedCustomer.name}</p>
                       {selectedCustomer.balance > 0 && (
                         <p className="text-sm text-stock-critical">
@@ -932,7 +1001,7 @@ export default function POSPage() {
             {/* Monto pagado (solo efectivo) */}
             {paymentMethod === 'CASH' && (
               <div className="mb-6">
-                <label className="block text-sm font-medium text-kiosko-muted mb-2">
+                <label className="block text-sm font-medium text-app-muted mb-2">
                   Monto recibido
                 </label>
                 <input
@@ -947,7 +1016,7 @@ export default function POSPage() {
                 />
 
                 {/* Botones de monto rápido */}
-                <div className="grid grid-cols-5 gap-2 mt-3">
+                <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
                   <button
                     onClick={() => setAmountPaid(total)}
                     className="py-2 rounded-lg bg-primary-500/20 border border-primary-500/50 hover:bg-primary-500/30 transition-colors text-sm text-primary-400 font-medium"
@@ -958,7 +1027,7 @@ export default function POSPage() {
                     <button
                       key={amount}
                       onClick={() => setAmountPaid(amountPaid + amount)}
-                      className="py-2 rounded-lg bg-kiosko-bg border border-kiosko-border hover:bg-kiosko-border transition-colors text-sm"
+                      className="py-2 rounded-lg bg-app-bg border border-app-border hover:bg-app-border transition-colors text-sm"
                     >
                       +${amount}
                     </button>
@@ -968,7 +1037,7 @@ export default function POSPage() {
                 {/* Vuelto */}
                 {amountPaid >= total && (
                   <div className="mt-4 p-3 bg-stock-ok/10 border border-stock-ok/30 rounded-lg text-center">
-                    <p className="text-kiosko-muted text-sm">Vuelto</p>
+                    <p className="text-app-muted text-sm">Vuelto</p>
                     <p className="text-2xl font-bold text-stock-ok font-price">
                       {formatPrice(change)}
                     </p>
@@ -980,16 +1049,16 @@ export default function POSPage() {
             {/* Pago mixto */}
             {paymentMethod === 'MIXED' && (
               <div className="mb-6 space-y-4">
-                <p className="text-sm text-kiosko-muted text-center">
+                <p className="text-sm text-app-muted text-center">
                   Divide el pago en dos métodos diferentes
                 </p>
                 
                 {/* Primer método */}
-                <div className="p-4 bg-kiosko-bg rounded-xl border border-kiosko-border">
-                  <label className="block text-sm font-medium text-kiosko-muted mb-2">
+                <div className="p-4 bg-app-bg rounded-xl border border-app-border">
+                  <label className="block text-sm font-medium text-app-muted mb-2">
                     Primer pago
                   </label>
-                  <div className="flex gap-2 mb-2">
+                  <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {(['CASH', 'DEBIT', 'CREDIT', 'TRANSFER'] as const).map((m) => (
                       <button
                         key={m}
@@ -1000,10 +1069,10 @@ export default function POSPage() {
                             setMixedMethod2(m === 'CASH' ? 'TRANSFER' : 'CASH');
                           }
                         }}
-                        className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                        className={`rounded-lg px-2 py-2 text-xs font-medium transition-all ${
                           mixedMethod1 === m
                             ? 'bg-primary-500 text-white'
-                            : 'bg-kiosko-border hover:bg-kiosko-border/70'
+                            : 'bg-app-border hover:bg-app-border/70'
                         }`}
                       >
                         {m === 'CASH' ? 'Efvo' : m === 'DEBIT' ? 'Déb' : m === 'CREDIT' ? 'Créd' : 'Transf'}
@@ -1026,11 +1095,11 @@ export default function POSPage() {
                 </div>
 
                 {/* Segundo método */}
-                <div className="p-4 bg-kiosko-bg rounded-xl border border-kiosko-border">
-                  <label className="block text-sm font-medium text-kiosko-muted mb-2">
+                <div className="p-4 bg-app-bg rounded-xl border border-app-border">
+                  <label className="block text-sm font-medium text-app-muted mb-2">
                     Segundo pago
                   </label>
-                  <div className="flex gap-2 mb-2">
+                  <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {(['CASH', 'DEBIT', 'CREDIT', 'TRANSFER'] as const).map((m) => (
                       <button
                         key={m}
@@ -1041,10 +1110,10 @@ export default function POSPage() {
                             setMixedMethod1(m === 'CASH' ? 'TRANSFER' : 'CASH');
                           }
                         }}
-                        className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                        className={`rounded-lg px-2 py-2 text-xs font-medium transition-all ${
                           mixedMethod2 === m
                             ? 'bg-primary-500 text-white'
-                            : 'bg-kiosko-border hover:bg-kiosko-border/70'
+                            : 'bg-app-border hover:bg-app-border/70'
                         }`}
                       >
                         {m === 'CASH' ? 'Efvo' : m === 'DEBIT' ? 'Déb' : m === 'CREDIT' ? 'Créd' : 'Transf'}
@@ -1072,7 +1141,7 @@ export default function POSPage() {
                     ? 'bg-stock-ok/10 border border-stock-ok/30'
                     : 'bg-yellow-500/10 border border-yellow-500/30'
                 }`}>
-                  <p className="text-sm text-kiosko-muted">
+                  <p className="text-sm text-app-muted">
                     Total: {formatPrice(mixedAmount1 + mixedAmount2)} / {formatPrice(total)}
                   </p>
                   {mixedAmount1 + mixedAmount2 !== total && (
@@ -1129,7 +1198,7 @@ export default function POSPage() {
             <form onSubmit={handleSaveNewProduct} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Código de barras {!autoGenerateBarcodePOS && '*'}
                   </label>
                   <input
@@ -1138,7 +1207,7 @@ export default function POSPage() {
                     onChange={(e) =>
                       setNewProductForm((d) => ({ ...d, barcode: e.target.value }))
                     }
-                    className={`input font-mono ${autoGenerateBarcodePOS ? 'opacity-50 bg-kiosko-bg' : ''}`}
+                    className={`input font-mono ${autoGenerateBarcodePOS ? 'opacity-50 bg-app-bg' : ''}`}
                     required={!autoGenerateBarcodePOS}
                     disabled={autoGenerateBarcodePOS}
                     placeholder={autoGenerateBarcodePOS ? 'Se generará automáticamente' : 'Escanear o ingresar código'}
@@ -1154,15 +1223,15 @@ export default function POSPage() {
                           setNewProductForm((d) => ({ ...d, barcode: '' }));
                         }
                       }}
-                      className="w-4 h-4 rounded border-kiosko-border text-primary-500 focus:ring-primary-500"
+                      className="w-4 h-4 rounded border-app-border text-primary-500 focus:ring-primary-500"
                     />
-                    <span className="text-sm text-kiosko-muted">
+                    <span className="text-sm text-app-muted">
                       Sin código de barras
                     </span>
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Categoría
                   </label>
                   <select
@@ -1183,7 +1252,7 @@ export default function POSPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Nombre del producto *
                 </label>
                 <input
@@ -1199,7 +1268,7 @@ export default function POSPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Descripción
                 </label>
                 <input
@@ -1214,7 +1283,7 @@ export default function POSPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Precio de venta *
                   </label>
                   <input
@@ -1230,7 +1299,7 @@ export default function POSPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Costo
                   </label>
                   <input
@@ -1246,7 +1315,7 @@ export default function POSPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 p-3 bg-kiosko-bg rounded-lg border border-kiosko-border">
+              <div className="flex items-center gap-3 p-3 bg-app-bg rounded-lg border border-app-border">
                 <input
                   type="checkbox"
                   id="isCigarettePOS"
@@ -1254,7 +1323,7 @@ export default function POSPage() {
                   onChange={(e) =>
                     setNewProductForm((d) => ({ ...d, isCigarette: e.target.checked }))
                   }
-                  className="w-5 h-5 rounded border-kiosko-border text-primary-500 focus:ring-primary-500"
+                  className="w-5 h-5 rounded border-app-border text-primary-500 focus:ring-primary-500"
                 />
                 <label htmlFor="isCigarettePOS" className="text-sm font-medium cursor-pointer">
                   🚬 Es cigarrillo (aplica recargo especial en transferencia)
@@ -1263,7 +1332,7 @@ export default function POSPage() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Stock actual
                   </label>
                   <input
@@ -1277,7 +1346,7 @@ export default function POSPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Stock mínimo
                   </label>
                   <input
@@ -1291,7 +1360,7 @@ export default function POSPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Unidades/caja
                   </label>
                   <input
@@ -1334,7 +1403,7 @@ export default function POSPage() {
 
             {/* Búsqueda */}
             <div className="relative mb-4">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" />
               <input
                 type="text"
                 value={customerSearch}
@@ -1352,12 +1421,12 @@ export default function POSPage() {
                   <button
                     key={customer.id}
                     onClick={() => handleSelectCustomer(customer)}
-                    className="w-full p-3 bg-kiosko-bg rounded-lg hover:bg-kiosko-border transition-colors text-left flex items-center justify-between"
+                    className="w-full p-3 bg-app-bg rounded-lg hover:bg-app-border transition-colors text-left flex items-center justify-between"
                   >
                     <div>
                       <p className="font-medium">{customer.name}</p>
                       {customer.phone && (
-                        <p className="text-sm text-kiosko-muted">{customer.phone}</p>
+                        <p className="text-sm text-app-muted">{customer.phone}</p>
                       )}
                     </div>
                     {customer.balance > 0 && (
@@ -1372,14 +1441,14 @@ export default function POSPage() {
 
             {/* Sin resultados */}
             {customerSearch.length >= 2 && customerResults.length === 0 && (
-              <p className="text-center text-kiosko-muted mb-4">
+              <p className="text-center text-app-muted mb-4">
                 No se encontraron clientes
               </p>
             )}
 
             {/* Crear cliente nuevo */}
-            <div className="border-t border-kiosko-border pt-4">
-              <p className="text-sm text-kiosko-muted mb-2">¿Cliente nuevo?</p>
+            <div className="border-t border-app-border pt-4">
+              <p className="text-sm text-app-muted mb-2">¿Cliente nuevo?</p>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -1405,7 +1474,7 @@ export default function POSPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 mt-4 border-t border-kiosko-border">
+            <div className="flex gap-3 pt-4 mt-4 border-t border-app-border">
               <button
                 onClick={() => setShowCustomerModal(false)}
                 className="btn-secondary flex-1"
@@ -1422,7 +1491,7 @@ export default function POSPage() {
         <div className="modal-overlay" onClick={clearMultipleProducts}>
           <div className="modal-content max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-2">Seleccionar Producto</h2>
-            <p className="text-kiosko-muted mb-4">
+            <p className="text-app-muted mb-4">
               Se encontraron {multipleProducts.length} productos con el mismo código de barras:
             </p>
             
@@ -1435,11 +1504,11 @@ export default function POSPage() {
                     clearMultipleProducts();
                     scanInputRef.current?.focus();
                   }}
-                  className="w-full p-4 rounded-lg border border-kiosko-border hover:border-primary-400 hover:bg-primary-400/10 transition-all text-left flex items-center justify-between gap-4"
+                  className="w-full p-4 rounded-lg border border-app-border hover:border-primary-400 hover:bg-primary-400/10 transition-all text-left flex items-center justify-between gap-4"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-lg truncate">{product.name}</p>
-                    <div className="flex gap-4 text-sm text-kiosko-muted">
+                    <div className="flex gap-4 text-sm text-app-muted">
                       <span className="font-mono">{product.barcode}</span>
                       {product.category && (
                         <span
@@ -1458,7 +1527,7 @@ export default function POSPage() {
                     <p className="text-2xl font-bold text-primary-400 font-price">
                       {formatPrice(product.price)}
                     </p>
-                    <p className={`text-sm ${product.stock <= product.minStock ? 'text-stock-critical' : 'text-kiosko-muted'}`}>
+                    <p className={`text-sm ${product.stock <= product.minStock ? 'text-stock-critical' : 'text-app-muted'}`}>
                       Stock: {product.stock}
                     </p>
                   </div>
@@ -1466,7 +1535,7 @@ export default function POSPage() {
               ))}
             </div>
 
-            <div className="flex gap-3 pt-4 mt-4 border-t border-kiosko-border">
+            <div className="flex gap-3 pt-4 mt-4 border-t border-app-border">
               <button
                 onClick={clearMultipleProducts}
                 className="btn-secondary flex-1"

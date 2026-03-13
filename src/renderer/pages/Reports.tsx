@@ -164,7 +164,7 @@ export default function ReportsPage() {
       case 'NO_REGISTER':
         return <span className="px-2 py-1 text-xs font-medium bg-stock-low/20 text-stock-low rounded-full">Sin Caja</span>;
       default:
-        return <span className="px-2 py-1 text-xs font-medium bg-kiosko-muted/20 text-kiosko-muted rounded-full">{status}</span>;
+        return <span className="px-2 py-1 text-xs font-medium bg-app-muted/20 text-app-muted rounded-full">{status}</span>;
     }
   };
 
@@ -188,17 +188,17 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Reportes</h1>
-          <p className="text-kiosko-muted">Análisis de ventas y rendimiento por turno</p>
+          <p className="text-app-muted">Análisis de ventas y rendimiento por turno</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-kiosko-card rounded-lg p-1">
+        <div className="flex bg-app-card rounded-lg p-1">
           <button
             onClick={() => setActiveTab('turnos')}
             className={`px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${
               activeTab === 'turnos'
                 ? 'bg-primary-600 text-white'
-                : 'text-kiosko-muted hover:text-white'
+                : 'text-app-muted hover:text-white'
             }`}
           >
             <FiUser size={16} />
@@ -209,7 +209,7 @@ export default function ReportsPage() {
             className={`px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${
               activeTab === 'resumen'
                 ? 'bg-primary-600 text-white'
-                : 'text-kiosko-muted hover:text-white'
+                : 'text-app-muted hover:text-white'
             }`}
           >
             <FiTrendingUp size={16} />
@@ -224,12 +224,12 @@ export default function ReportsPage() {
           <div className="flex items-center justify-center gap-4 mb-6">
             <button
               onClick={() => changeDate(-1)}
-              className="p-2 rounded-lg bg-kiosko-card hover:bg-primary-600/20 transition-colors"
+              className="p-2 rounded-lg bg-app-card hover:bg-primary-600/20 transition-colors"
             >
               <FiChevronLeft size={24} />
             </button>
             
-            <div className="flex items-center gap-3 px-6 py-3 bg-kiosko-card rounded-xl">
+            <div className="flex items-center gap-3 px-6 py-3 bg-app-card rounded-xl">
               <FiCalendar className="text-primary-400" size={20} />
               <span className="text-lg font-medium capitalize">
                 {isToday() ? 'Hoy - ' : ''}{formatDate(selectedDate)}
@@ -241,8 +241,8 @@ export default function ReportsPage() {
               disabled={isToday()}
               className={`p-2 rounded-lg transition-colors ${
                 isToday()
-                  ? 'bg-kiosko-bg text-kiosko-muted cursor-not-allowed'
-                  : 'bg-kiosko-card hover:bg-primary-600/20'
+                  ? 'bg-app-bg text-app-muted cursor-not-allowed'
+                  : 'bg-app-card hover:bg-primary-600/20'
               }`}
             >
               <FiChevronRight size={24} />
@@ -251,7 +251,7 @@ export default function ReportsPage() {
 
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-kiosko-muted">Cargando datos...</p>
+              <p className="text-app-muted">Cargando datos...</p>
             </div>
           ) : cashierReport ? (
             <>
@@ -263,7 +263,7 @@ export default function ReportsPage() {
                       <FiDollarSign className="text-stock-ok" size={24} />
                     </div>
                     <div>
-                      <p className="text-kiosko-muted text-sm">Total del Día</p>
+                      <p className="text-app-muted text-sm">Total del Día</p>
                       <p className="text-2xl font-bold font-price text-stock-ok">
                         {formatPrice(cashierReport.dayTotal.totalSales)}
                       </p>
@@ -277,7 +277,7 @@ export default function ReportsPage() {
                       <FiShoppingCart className="text-primary-400" size={24} />
                     </div>
                     <div>
-                      <p className="text-kiosko-muted text-sm">Transacciones</p>
+                      <p className="text-app-muted text-sm">Transacciones</p>
                       <p className="text-2xl font-bold text-primary-400">
                         {cashierReport.dayTotal.totalTransactions}
                       </p>
@@ -291,7 +291,7 @@ export default function ReportsPage() {
                       <FiPackage className="text-stock-low" size={24} />
                     </div>
                     <div>
-                      <p className="text-kiosko-muted text-sm">Items Vendidos</p>
+                      <p className="text-app-muted text-sm">Items Vendidos</p>
                       <p className="text-2xl font-bold text-stock-low">
                         {cashierReport.dayTotal.totalItems}
                       </p>
@@ -305,7 +305,7 @@ export default function ReportsPage() {
                       <FiUser className="text-amber-400" size={24} />
                     </div>
                     <div>
-                      <p className="text-kiosko-muted text-sm">Turnos</p>
+                      <p className="text-app-muted text-sm">Turnos</p>
                       <p className="text-2xl font-bold text-amber-400">
                         {cashierReport.dayTotal.shiftsCount}
                       </p>
@@ -323,7 +323,7 @@ export default function ReportsPage() {
 
                 {cashierReport.shifts.length === 0 && cashierReport.unassignedSales.length === 0 ? (
                   <div className="card flex items-center justify-center py-12">
-                    <p className="text-kiosko-muted">No hay turnos registrados para este día</p>
+                    <p className="text-app-muted">No hay turnos registrados para este día</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -340,7 +340,7 @@ export default function ReportsPage() {
                             </div>
                             <div>
                               <h4 className="text-lg font-bold">{shift.cashier.name}</h4>
-                              <p className="text-kiosko-muted text-sm">@{shift.cashier.username}</p>
+                              <p className="text-app-muted text-sm">@{shift.cashier.username}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
@@ -349,7 +349,7 @@ export default function ReportsPage() {
                               <p className="text-2xl font-bold font-price text-stock-ok">
                                 {formatPrice(shift.salesTotal)}
                               </p>
-                              <p className="text-sm text-kiosko-muted">
+                              <p className="text-sm text-app-muted">
                                 {shift.salesCount} ventas
                               </p>
                             </div>
@@ -357,22 +357,22 @@ export default function ReportsPage() {
                         </div>
 
                         <div className="grid grid-cols-4 gap-4 mb-4">
-                          <div className="p-3 bg-kiosko-bg rounded-lg">
-                            <p className="text-xs text-kiosko-muted mb-1">Apertura</p>
+                          <div className="p-3 bg-app-bg rounded-lg">
+                            <p className="text-xs text-app-muted mb-1">Apertura</p>
                             <p className="font-medium">{formatTime(shift.openedAt)}</p>
                           </div>
-                          <div className="p-3 bg-kiosko-bg rounded-lg">
-                            <p className="text-xs text-kiosko-muted mb-1">Cierre</p>
+                          <div className="p-3 bg-app-bg rounded-lg">
+                            <p className="text-xs text-app-muted mb-1">Cierre</p>
                             <p className="font-medium">{formatTime(shift.closedAt)}</p>
                           </div>
-                          <div className="p-3 bg-kiosko-bg rounded-lg">
-                            <p className="text-xs text-kiosko-muted mb-1">Fondo Inicial</p>
+                          <div className="p-3 bg-app-bg rounded-lg">
+                            <p className="text-xs text-app-muted mb-1">Fondo Inicial</p>
                             <p className="font-medium font-price">{formatPrice(shift.initialAmount)}</p>
                           </div>
-                          <div className="p-3 bg-kiosko-bg rounded-lg">
-                            <p className="text-xs text-kiosko-muted mb-1">Diferencia</p>
+                          <div className="p-3 bg-app-bg rounded-lg">
+                            <p className="text-xs text-app-muted mb-1">Diferencia</p>
                             <p className={`font-medium font-price ${
-                              shift.difference === null ? 'text-kiosko-muted' :
+                              shift.difference === null ? 'text-app-muted' :
                               shift.difference === 0 ? 'text-stock-ok' :
                               shift.difference > 0 ? 'text-stock-ok' : 'text-stock-critical'
                             }`}>
@@ -387,11 +387,11 @@ export default function ReportsPage() {
                             {shift.byPaymentMethod.map((pm) => (
                               <div
                                 key={pm.method}
-                                className="px-3 py-2 bg-kiosko-bg rounded-lg text-sm"
+                                className="px-3 py-2 bg-app-bg rounded-lg text-sm"
                               >
-                                <span className="text-kiosko-muted">{getPaymentMethodLabel(pm.method)}: </span>
+                                <span className="text-app-muted">{getPaymentMethodLabel(pm.method)}: </span>
                                 <span className="font-medium font-price">{formatPrice(pm.total)}</span>
-                                <span className="text-kiosko-muted"> ({pm.count})</span>
+                                <span className="text-app-muted"> ({pm.count})</span>
                               </div>
                             ))}
                           </div>
@@ -421,7 +421,7 @@ export default function ReportsPage() {
                               <p className="text-2xl font-bold font-price text-stock-low">
                                 {formatPrice(shift.salesTotal)}
                               </p>
-                              <p className="text-sm text-kiosko-muted">
+                              <p className="text-sm text-app-muted">
                                 {shift.salesCount} ventas
                               </p>
                             </div>
@@ -433,11 +433,11 @@ export default function ReportsPage() {
                             {shift.byPaymentMethod.map((pm) => (
                               <div
                                 key={pm.method}
-                                className="px-3 py-2 bg-kiosko-bg rounded-lg text-sm"
+                                className="px-3 py-2 bg-app-bg rounded-lg text-sm"
                               >
-                                <span className="text-kiosko-muted">{getPaymentMethodLabel(pm.method)}: </span>
+                                <span className="text-app-muted">{getPaymentMethodLabel(pm.method)}: </span>
                                 <span className="font-medium font-price">{formatPrice(pm.total)}</span>
-                                <span className="text-kiosko-muted"> ({pm.count})</span>
+                                <span className="text-app-muted"> ({pm.count})</span>
                               </div>
                             ))}
                           </div>
@@ -450,7 +450,7 @@ export default function ReportsPage() {
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-kiosko-muted">No se pudieron cargar los datos</p>
+              <p className="text-app-muted">No se pudieron cargar los datos</p>
             </div>
           )}
         </>
@@ -460,7 +460,7 @@ export default function ReportsPage() {
         <>
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-kiosko-muted">Cargando datos...</p>
+              <p className="text-app-muted">Cargando datos...</p>
             </div>
           ) : (
             <>
@@ -472,7 +472,7 @@ export default function ReportsPage() {
                       <FiDollarSign className="text-stock-ok" size={28} />
                     </div>
                     <div>
-                      <p className="text-kiosko-muted text-sm">Ventas Totales (Hoy)</p>
+                      <p className="text-app-muted text-sm">Ventas Totales (Hoy)</p>
                       <p className="text-3xl font-bold font-price text-stock-ok">
                         {formatPrice(summary?.totalSales || 0)}
                       </p>
@@ -486,7 +486,7 @@ export default function ReportsPage() {
                       <FiShoppingCart className="text-primary-500" size={28} />
                     </div>
                     <div>
-                      <p className="text-kiosko-muted text-sm">Cantidad de Ventas</p>
+                      <p className="text-app-muted text-sm">Cantidad de Ventas</p>
                       <p className="text-3xl font-bold text-primary-400">
                         {summary?.salesCount || 0}
                       </p>
@@ -500,7 +500,7 @@ export default function ReportsPage() {
                       <FiTrendingUp className="text-stock-low" size={28} />
                     </div>
                     <div>
-                      <p className="text-kiosko-muted text-sm">Promedio por Venta</p>
+                      <p className="text-app-muted text-sm">Promedio por Venta</p>
                       <p className="text-3xl font-bold font-price text-stock-low">
                         {formatPrice(
                           summary?.salesCount
@@ -525,13 +525,13 @@ export default function ReportsPage() {
                     {summary?.byPaymentMethod.map((item) => (
                       <div
                         key={item.paymentMethod}
-                        className="flex items-center justify-between p-3 bg-kiosko-bg rounded-lg"
+                        className="flex items-center justify-between p-3 bg-app-bg rounded-lg"
                       >
                         <div>
                           <p className="font-medium">
                             {getPaymentMethodLabel(item.paymentMethod)}
                           </p>
-                          <p className="text-sm text-kiosko-muted">
+                          <p className="text-sm text-app-muted">
                             {item._count} ventas
                           </p>
                         </div>
@@ -543,7 +543,7 @@ export default function ReportsPage() {
 
                     {(!summary?.byPaymentMethod ||
                       summary.byPaymentMethod.length === 0) && (
-                      <p className="text-center text-kiosko-muted py-8">
+                      <p className="text-center text-app-muted py-8">
                         Sin ventas en este período
                       </p>
                     )}
@@ -561,17 +561,17 @@ export default function ReportsPage() {
                     {topProducts.slice(0, 8).map((product, index) => (
                       <div
                         key={product.productId}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-kiosko-bg transition-colors"
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-app-bg transition-colors"
                       >
                         <span
                           className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${
                             index === 0
                               ? 'bg-stock-low/20 text-stock-low'
                               : index === 1
-                              ? 'bg-kiosko-muted/20 text-kiosko-muted'
+                              ? 'bg-app-muted/20 text-app-muted'
                               : index === 2
                               ? 'bg-amber-600/20 text-amber-600'
-                              : 'bg-kiosko-bg text-kiosko-muted'
+                              : 'bg-app-bg text-app-muted'
                           }`}
                         >
                           {index + 1}
@@ -581,7 +581,7 @@ export default function ReportsPage() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold">{product.totalQuantity} un.</p>
-                          <p className="text-sm text-kiosko-muted font-price">
+                          <p className="text-sm text-app-muted font-price">
                             {formatPrice(product.totalRevenue)}
                           </p>
                         </div>
@@ -589,7 +589,7 @@ export default function ReportsPage() {
                     ))}
 
                     {topProducts.length === 0 && (
-                      <p className="text-center text-kiosko-muted py-8">
+                      <p className="text-center text-app-muted py-8">
                         Sin datos de productos
                       </p>
                     )}

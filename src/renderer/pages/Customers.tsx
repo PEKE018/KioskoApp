@@ -214,7 +214,7 @@ export default function CustomersPage() {
             <FiUsers className="text-primary-400" />
             Clientes (Fiado)
           </h1>
-          <p className="text-kiosko-muted">
+          <p className="text-app-muted">
             {customersWithDebt.length} clientes con deuda • Total: {formatPrice(totalDebt)}
           </p>
         </div>
@@ -241,7 +241,7 @@ export default function CustomersPage() {
 
       {/* Búsqueda */}
       <div className="relative max-w-md mb-6">
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" />
         <input
           type="text"
           value={searchQuery}
@@ -255,10 +255,10 @@ export default function CustomersPage() {
       <div className="flex-1 overflow-auto">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <p className="text-kiosko-muted">Cargando...</p>
+            <p className="text-app-muted">Cargando...</p>
           </div>
         ) : filteredCustomers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-kiosko-muted">
+          <div className="flex flex-col items-center justify-center h-64 text-app-muted">
             <FiUsers size={48} className="mb-4 opacity-50" />
             <p>No hay clientes registrados</p>
             <button onClick={() => setShowNewModal(true)} className="btn-primary mt-4">
@@ -279,7 +279,7 @@ export default function CustomersPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-lg truncate">{customer.name}</p>
                     {customer.phone && (
-                      <p className="text-sm text-kiosko-muted flex items-center gap-1">
+                      <p className="text-sm text-app-muted flex items-center gap-1">
                         <FiPhone size={14} />
                         {customer.phone}
                       </p>
@@ -288,7 +288,7 @@ export default function CustomersPage() {
                   <div className="text-right">
                     {customer.balance > 0 ? (
                       <>
-                        <p className="text-sm text-kiosko-muted">Debe</p>
+                        <p className="text-sm text-app-muted">Debe</p>
                         <p className="text-xl font-bold text-stock-critical">
                           {formatPrice(customer.balance)}
                         </p>
@@ -297,7 +297,7 @@ export default function CustomersPage() {
                       <p className="text-stock-ok font-medium">Al día</p>
                     )}
                   </div>
-                  <FiChevronRight className="text-kiosko-muted ml-2" />
+                  <FiChevronRight className="text-app-muted ml-2" />
                 </div>
               </div>
             ))}
@@ -313,7 +313,7 @@ export default function CustomersPage() {
 
             <form onSubmit={handleCreateCustomer} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Nombre *
                 </label>
                 <input
@@ -328,7 +328,7 @@ export default function CustomersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Teléfono
                 </label>
                 <input
@@ -341,7 +341,7 @@ export default function CustomersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Notas
                 </label>
                 <textarea
@@ -379,19 +379,19 @@ export default function CustomersPage() {
               <div>
                 <h2 className="text-2xl font-bold">{selectedCustomer.name}</h2>
                 {selectedCustomer.phone && (
-                  <p className="text-kiosko-muted flex items-center gap-1">
+                  <p className="text-app-muted flex items-center gap-1">
                     <FiPhone size={14} />
                     {selectedCustomer.phone}
                   </p>
                 )}
                 {selectedCustomer.notes && (
-                  <p className="text-sm text-kiosko-muted mt-1">{selectedCustomer.notes}</p>
+                  <p className="text-sm text-app-muted mt-1">{selectedCustomer.notes}</p>
                 )}
               </div>
               <div className="text-right">
                 {selectedCustomer.balance > 0 ? (
                   <>
-                    <p className="text-sm text-kiosko-muted">Saldo pendiente</p>
+                    <p className="text-sm text-app-muted">Saldo pendiente</p>
                     <p className="text-3xl font-bold text-stock-critical">
                       {formatPrice(selectedCustomer.balance)}
                     </p>
@@ -418,15 +418,15 @@ export default function CustomersPage() {
                   Ventas Fiadas
                 </h3>
                 {selectedCustomer.sales.length === 0 ? (
-                  <p className="text-kiosko-muted text-sm">Sin ventas fiadas</p>
+                  <p className="text-app-muted text-sm">Sin ventas fiadas</p>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {selectedCustomer.sales.map((sale) => (
-                      <div key={sale.id} className="p-3 bg-kiosko-bg rounded-lg border border-stock-critical/20">
+                      <div key={sale.id} className="p-3 bg-app-bg rounded-lg border border-stock-critical/20">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="text-sm text-kiosko-muted">{formatDate(sale.createdAt)}</p>
-                            <p className="text-xs text-kiosko-muted">
+                            <p className="text-sm text-app-muted">{formatDate(sale.createdAt)}</p>
+                            <p className="text-xs text-app-muted">
                               {sale.items.map((i) => `${i.quantity}x ${i.product.name}`).join(', ')}
                             </p>
                           </div>
@@ -447,16 +447,16 @@ export default function CustomersPage() {
                   Pagos Recibidos
                 </h3>
                 {selectedCustomer.payments.length === 0 ? (
-                  <p className="text-kiosko-muted text-sm">Sin pagos registrados</p>
+                  <p className="text-app-muted text-sm">Sin pagos registrados</p>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {selectedCustomer.payments.map((payment) => (
-                      <div key={payment.id} className="p-3 bg-kiosko-bg rounded-lg border border-stock-ok/20">
+                      <div key={payment.id} className="p-3 bg-app-bg rounded-lg border border-stock-ok/20">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="text-sm text-kiosko-muted">{formatDate(payment.createdAt)}</p>
+                            <p className="text-sm text-app-muted">{formatDate(payment.createdAt)}</p>
                             {payment.notes && (
-                              <p className="text-xs text-kiosko-muted">{payment.notes}</p>
+                              <p className="text-xs text-app-muted">{payment.notes}</p>
                             )}
                           </div>
                           <p className="font-bold text-stock-ok">
@@ -470,7 +470,7 @@ export default function CustomersPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 pt-6 mt-6 border-t border-kiosko-border">
+            <div className="flex gap-3 pt-6 mt-6 border-t border-app-border">
               <button
                 onClick={() => handleDeleteCustomer(selectedCustomer.id, selectedCustomer.name)}
                 className="btn-secondary text-stock-critical hover:bg-stock-critical/20 flex items-center gap-2"
@@ -495,10 +495,10 @@ export default function CustomersPage() {
           <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-4">Registrar Pago</h2>
             
-            <div className="p-4 bg-kiosko-bg rounded-lg mb-4">
-              <p className="text-kiosko-muted">Cliente</p>
+            <div className="p-4 bg-app-bg rounded-lg mb-4">
+              <p className="text-app-muted">Cliente</p>
               <p className="font-bold text-lg">{selectedCustomer.name}</p>
-              <p className="text-kiosko-muted mt-2">Deuda actual</p>
+              <p className="text-app-muted mt-2">Deuda actual</p>
               <p className="text-2xl font-bold text-stock-critical">
                 {formatPrice(selectedCustomer.balance)}
               </p>
@@ -506,7 +506,7 @@ export default function CustomersPage() {
 
             <form onSubmit={handleRegisterPayment} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Monto del pago *
                 </label>
                 <input
@@ -539,7 +539,7 @@ export default function CustomersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Notas (opcional)
                 </label>
                 <input

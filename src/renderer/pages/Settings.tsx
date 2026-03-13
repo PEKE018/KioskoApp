@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '../i18n';
 import { useAuthStore } from '../stores/authStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import {
   FiDatabase,
   FiShield,
@@ -13,6 +14,12 @@ import {
   FiRefreshCw,
   FiCheckCircle,
 } from 'react-icons/fi';
+import {
+  clearPendingUpdate,
+  clearPendingUpdateIfInstalled,
+  getPendingUpdate,
+  setPendingUpdate,
+} from '../utils/updateState';
 
 interface AppConfig {
   businessName: string;
@@ -33,7 +40,7 @@ export default function SettingsPage() {
   const [, setLoading] = useState(true);
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
   const [businessData, setBusinessData] = useState({
-    businessName: 'Mi Kiosko',
+    businessName: 'Mi Negocio',
     businessAddress: '',
     businessPhone: '',
     businessCuit: '',
@@ -69,7 +76,7 @@ export default function SettingsPage() {
         };
         if (result.success && result.data) {
           setBusinessData({
-            businessName: result.data.businessName || 'Mi Kiosko',
+            businessName: result.data.businessName || 'Mi Negocio',
             businessAddress: result.data.businessAddress || '',
             businessPhone: result.data.businessPhone || '',
             businessCuit: result.data.businessCuit || '',
@@ -97,6 +104,16 @@ export default function SettingsPage() {
         const result = await window.api.updater.getCurrentVersion() as { success: boolean; version?: string };
         if (result.success && result.version) {
           setCurrentVersion(result.version);
+          clearPendingUpdateIfInstalled(result.version);
+
+          const pendingUpdate = getPendingUpdate();
+          if (pendingUpdate && pendingUpdate.version !== result.version) {
+            setUpdateInfo({
+              version: pendingUpdate.version,
+              releaseNotes: pendingUpdate.releaseNotes,
+            });
+            setUpdateStatus(pendingUpdate.status);
+          }
         }
       } catch (error) {
         console.error('Error loading version:', error);
@@ -105,23 +122,52 @@ export default function SettingsPage() {
     loadVersion();
 
     // Listeners para actualizaciones
-    window.api.updater.onUpdateAvailable((info: unknown) => {
+    const offAvailable = window.api.updater.onUpdateAvailable((info: unknown) => {
       const updateData = info as { version?: string; releaseNotes?: string };
+      if (updateData.version) {
+        setPendingUpdate({
+          version: updateData.version,
+          releaseNotes: updateData.releaseNotes,
+          status: 'available',
+        });
+      }
       setUpdateStatus('available');
       setUpdateInfo(updateData);
     });
 
-    window.api.updater.onDownloadProgress((progress: unknown) => {
+    const offProgress = window.api.updater.onDownloadProgress((progress: unknown) => {
       const progressData = progress as { percent?: number };
       setUpdateStatus('downloading');
       setDownloadProgress(progressData.percent || 0);
     });
 
-    window.api.updater.onUpdateDownloaded((info: unknown) => {
+    const offDownloaded = window.api.updater.onUpdateDownloaded((info: unknown) => {
       const updateData = info as { version?: string; releaseNotes?: string };
+      if (updateData.version) {
+        setPendingUpdate({
+          version: updateData.version,
+          releaseNotes: updateData.releaseNotes,
+          status: 'downloaded',
+        });
+      }
       setUpdateStatus('downloaded');
       setUpdateInfo(updateData);
     });
+
+    const offError = window.api.updater.onUpdateError?.((error: unknown) => {
+      const message = typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as { message?: string }).message)
+        : 'Error al descargar la actualización';
+      setUpdateStatus('error');
+      setMessage({ type: 'error', text: message });
+    });
+
+    return () => {
+      offAvailable?.();
+      offProgress?.();
+      offDownloaded?.();
+      offError?.();
+    };
   }, []);
 
   // Funciones para actualizaciones
@@ -130,7 +176,15 @@ export default function SettingsPage() {
     try {
       const result = await window.api.updater.check() as { success: boolean; updateAvailable?: boolean; version?: string; error?: string };
       if (result.success) {
+        if (result.updateAvailable && result.version) {
+          setPendingUpdate({ version: result.version, status: 'available' });
+          setUpdateInfo({ version: result.version });
+          setUpdateStatus('available');
+          return;
+        }
+
         if (!result.updateAvailable) {
+          clearPendingUpdate();
           setUpdateStatus('idle');
           setMessage({ type: 'success', text: 'Ya tienes la última versión' });
         }
@@ -147,7 +201,11 @@ export default function SettingsPage() {
   const downloadUpdate = useCallback(async () => {
     setUpdateStatus('downloading');
     try {
-      await window.api.updater.download();
+      const result = await window.api.updater.download() as { success: boolean; error?: string };
+      if (!result.success) {
+        setUpdateStatus('error');
+        setMessage({ type: 'error', text: result.error || 'Error al descargar la actualización' });
+      }
     } catch (error) {
       setUpdateStatus('error');
       setMessage({ type: 'error', text: 'Error al descargar la actualización' });
@@ -156,6 +214,12 @@ export default function SettingsPage() {
 
   const installUpdate = useCallback(async () => {
     try {
+      const cashResult = await window.api.cashRegister.getCurrent() as { success: boolean; data?: { id: string } | null };
+      if (cashResult.success && cashResult.data) {
+        setMessage({ type: 'error', text: 'Cierre la caja antes de instalar la actualización.' });
+        return;
+      }
+
       await window.api.updater.install();
     } catch (error) {
       setMessage({ type: 'error', text: 'Error al instalar la actualización' });
@@ -164,6 +228,8 @@ export default function SettingsPage() {
 
   const handleSaveBusiness = async (e: React.FormEvent) => {
     e.preventDefault();
+    const { updateSettings } = useSettingsStore.getState();
+    
     try {
       const result = await window.api.settings.update({
         businessName: businessData.businessName,
@@ -179,6 +245,12 @@ export default function SettingsPage() {
       }) as { success: boolean; error?: string };
 
       if (result.success) {
+        // Actualizar el store global para reflejar en el sidebar
+        updateSettings({
+          businessName: businessData.businessName,
+          businessAddress: businessData.businessAddress || null,
+          businessPhone: businessData.businessPhone || null,
+        });
         setMessage({ type: 'success', text: 'Configuración guardada correctamente' });
       } else {
         setMessage({ type: 'error', text: result.error || 'Error al guardar' });
@@ -228,7 +300,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{t('settings.title')}</h1>
-        <p className="text-kiosko-muted">{t('settings.subtitle')}</p>
+        <p className="text-app-muted">{t('settings.subtitle')}</p>
       </div>
 
       {/* Mensaje */}
@@ -271,7 +343,7 @@ export default function SettingsPage() {
                   <FiGlobe className="text-primary-400" />
                   {t('settings.language')}
                 </h3>
-                <p className="text-kiosko-muted text-sm mb-4">
+                <p className="text-app-muted text-sm mb-4">
                   {t('settings.languageDescription')}
                 </p>
                 
@@ -284,7 +356,7 @@ export default function SettingsPage() {
                     className={`flex-1 p-4 rounded-xl border-2 transition-all ${
                       currentLanguage === 'es'
                         ? 'border-primary-500 bg-primary-500/10'
-                        : 'border-kiosko-border hover:border-kiosko-muted'
+                        : 'border-app-border hover:border-app-muted'
                     }`}
                   >
                     <div className="text-3xl mb-2">🇪🇸</div>
@@ -298,7 +370,7 @@ export default function SettingsPage() {
                     className={`flex-1 p-4 rounded-xl border-2 transition-all ${
                       currentLanguage === 'en'
                         ? 'border-primary-500 bg-primary-500/10'
-                        : 'border-kiosko-border hover:border-kiosko-muted'
+                        : 'border-app-border hover:border-app-muted'
                     }`}
                   >
                     <div className="text-3xl mb-2">🇺🇸</div>
@@ -317,7 +389,7 @@ export default function SettingsPage() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Nombre del negocio
                     </label>
                     <input
@@ -330,7 +402,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       CUIT
                     </label>
                     <input
@@ -344,7 +416,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Dirección
                     </label>
                     <input
@@ -357,7 +429,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Teléfono
                     </label>
                     <input
@@ -377,7 +449,7 @@ export default function SettingsPage() {
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Encabezado del ticket
                     </label>
                     <input
@@ -390,7 +462,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Pie del ticket
                     </label>
                     <input
@@ -412,10 +484,10 @@ export default function SettingsPage() {
                   Configuración de Pagos
                 </h3>
                 
-                <div className="bg-kiosko-bg rounded-xl p-4 border border-kiosko-border space-y-4">
+                <div className="bg-app-bg rounded-xl p-4 border border-app-border space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                      <label className="block text-sm font-medium text-app-muted mb-1">
                         Recargo Transferencia General (%)
                       </label>
                       <div className="relative">
@@ -431,14 +503,14 @@ export default function SettingsPage() {
                           step={0.5}
                           placeholder="0"
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-kiosko-muted">%</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted">%</span>
                       </div>
-                      <p className="text-xs text-kiosko-muted mt-1">
+                      <p className="text-xs text-app-muted mt-1">
                         Se aplica a toda la compra
                       </p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                      <label className="block text-sm font-medium text-app-muted mb-1">
                         🚬 Recargo Cigarrillos (%)
                       </label>
                       <div className="relative">
@@ -454,9 +526,9 @@ export default function SettingsPage() {
                           step={0.5}
                           placeholder="0"
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-kiosko-muted">%</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted">%</span>
                       </div>
-                      <p className="text-xs text-kiosko-muted mt-1">
+                      <p className="text-xs text-app-muted mt-1">
                         Adicional para productos marcados como cigarrillos
                       </p>
                     </div>
@@ -466,11 +538,11 @@ export default function SettingsPage() {
 
               <div>
                 <h3 className="text-lg font-bold mb-4">Opciones de Productos</h3>
-                <p className="text-sm text-kiosko-muted mb-4">
+                <p className="text-sm text-app-muted mb-4">
                   Configura qué campos se muestran en el formulario de productos
                 </p>
                 
-                <div className="bg-kiosko-bg rounded-xl p-4 border border-kiosko-border space-y-4">
+                <div className="bg-app-bg rounded-xl p-4 border border-app-border space-y-4">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -478,11 +550,11 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         setBusinessData((d) => ({ ...d, showCostPrice: e.target.checked }))
                       }
-                      className="w-5 h-5 rounded border-kiosko-border bg-kiosko-bg text-primary-500 focus:ring-primary-500"
+                      className="w-5 h-5 rounded border-app-border bg-app-bg text-primary-500 focus:ring-primary-500"
                     />
                     <div>
                       <span className="font-medium">Mostrar precio de costo</span>
-                      <p className="text-xs text-kiosko-muted">
+                      <p className="text-xs text-app-muted">
                         Permite registrar el precio de costo de los productos
                       </p>
                     </div>
@@ -495,11 +567,11 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         setBusinessData((d) => ({ ...d, showUnitsPerBox: e.target.checked }))
                       }
-                      className="w-5 h-5 rounded border-kiosko-border bg-kiosko-bg text-primary-500 focus:ring-primary-500"
+                      className="w-5 h-5 rounded border-app-border bg-app-bg text-primary-500 focus:ring-primary-500"
                     />
                     <div>
                       <span className="font-medium">Mostrar unidades por caja</span>
-                      <p className="text-xs text-kiosko-muted">
+                      <p className="text-xs text-app-muted">
                         Permite configurar cuántas unidades vienen por caja/paquete
                       </p>
                     </div>
@@ -522,7 +594,7 @@ export default function SettingsPage() {
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Contraseña actual
                     </label>
                     <input
@@ -536,7 +608,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Nueva contraseña
                     </label>
                     <input
@@ -551,7 +623,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Confirmar nueva contraseña
                     </label>
                     <input
@@ -579,18 +651,18 @@ export default function SettingsPage() {
             <div className="space-y-6">
               <div className="text-center py-8">
                 <h2 className="text-4xl font-bold text-primary-400 mb-2">
-                  🏪 KioskoApp
+                  🏪 StockPOS
                 </h2>
-                <p className="text-kiosko-muted">
+                <p className="text-app-muted">
                   Sistema de Gestión de Stock y Ventas
                 </p>
-                <p className="text-kiosko-muted text-sm mt-1">
+                <p className="text-app-muted text-sm mt-1">
                   Versión {currentVersion}
                 </p>
               </div>
 
               {/* Sección de Actualizaciones */}
-              <div className="p-4 bg-kiosko-bg rounded-lg">
+              <div className="p-4 bg-app-bg rounded-lg">
                 <h4 className="font-bold mb-3 flex items-center gap-2">
                   <FiDownload size={18} />
                   Actualizaciones
@@ -598,7 +670,7 @@ export default function SettingsPage() {
                 
                 {updateStatus === 'idle' && (
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-kiosko-muted">
+                    <p className="text-sm text-app-muted">
                       Verifica si hay nuevas versiones disponibles
                     </p>
                     <button
@@ -627,7 +699,7 @@ export default function SettingsPage() {
                       </span>
                     </div>
                     {updateInfo.releaseNotes && (
-                      <p className="text-sm text-kiosko-muted pl-7">
+                      <p className="text-sm text-app-muted pl-7">
                         {typeof updateInfo.releaseNotes === 'string' 
                           ? updateInfo.releaseNotes 
                           : 'Mejoras y correcciones de errores'}
@@ -655,7 +727,7 @@ export default function SettingsPage() {
                         style={{ width: `${downloadProgress}%` }}
                       />
                     </div>
-                    <p className="text-sm text-kiosko-muted text-center">
+                    <p className="text-sm text-app-muted text-center">
                       {downloadProgress.toFixed(1)}% completado
                     </p>
                   </div>
@@ -669,7 +741,7 @@ export default function SettingsPage() {
                         Actualización lista para instalar (v{updateInfo?.version})
                       </span>
                     </div>
-                    <p className="text-sm text-kiosko-muted pl-7">
+                    <p className="text-sm text-app-muted pl-7">
                       La aplicación se reiniciará para aplicar los cambios. 
                       Tus datos se mantendrán intactos.
                     </p>
@@ -700,22 +772,22 @@ export default function SettingsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-kiosko-bg rounded-lg">
-                  <p className="text-sm text-kiosko-muted mb-1">Tecnologías</p>
+                <div className="p-4 bg-app-bg rounded-lg">
+                  <p className="text-sm text-app-muted mb-1">Tecnologías</p>
                   <p className="font-medium">Electron + React + SQLite</p>
                 </div>
-                <div className="p-4 bg-kiosko-bg rounded-lg">
-                  <p className="text-sm text-kiosko-muted mb-1">Usuario actual</p>
+                <div className="p-4 bg-app-bg rounded-lg">
+                  <p className="text-sm text-app-muted mb-1">Usuario actual</p>
                   <p className="font-medium">{user?.name}</p>
-                  <p className="text-xs text-kiosko-muted">
+                  <p className="text-xs text-app-muted">
                     {user?.role === 'ADMIN' ? 'Administrador' : 'Cajero'}
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 bg-kiosko-bg rounded-lg">
+              <div className="p-4 bg-app-bg rounded-lg">
                 <h4 className="font-bold mb-2">Características principales</h4>
-                <ul className="text-sm text-kiosko-muted space-y-1">
+                <ul className="text-sm text-app-muted space-y-1">
                   <li>✓ Punto de venta ultra rápido con código de barras</li>
                   <li>✓ Carga de stock por categorías</li>
                   <li>✓ Control de inventario en tiempo real</li>
@@ -725,7 +797,7 @@ export default function SettingsPage() {
                 </ul>
               </div>
 
-              <div className="text-center text-sm text-kiosko-muted">
+              <div className="text-center text-sm text-app-muted">
                 <p>Desarrollado con ❤️ para kiosqueros</p>
               </div>
             </div>

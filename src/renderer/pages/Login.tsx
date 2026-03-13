@@ -105,22 +105,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-kiosko-bg flex items-center justify-center p-4">
+    <div className="min-h-screen bg-app-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary-400 mb-2">🏪 KioskoApp</h1>
-          <p className="text-kiosko-muted">{t('login.title')}</p>
+          <h1 className="text-4xl font-bold text-primary-400 mb-2">🏪 StockPOS</h1>
+          <p className="text-app-muted">{t('login.title')}</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex mb-6 bg-kiosko-card rounded-lg p-1">
+        <div className="flex mb-6 bg-app-card rounded-lg p-1">
           <button
             onClick={() => setMode('credentials')}
             className={`flex-1 py-2 px-4 rounded-md transition-colors ${
               mode === 'credentials'
                 ? 'bg-primary-600 text-white'
-                : 'text-kiosko-muted hover:text-kiosko-text'
+                : 'text-app-muted hover:text-app-text'
             }`}
           >
             {t('login.credentials')}
@@ -130,7 +130,7 @@ export default function LoginPage() {
             className={`flex-1 py-2 px-4 rounded-md transition-colors ${
               mode === 'pin'
                 ? 'bg-primary-600 text-white'
-                : 'text-kiosko-muted hover:text-kiosko-text'
+                : 'text-app-muted hover:text-app-text'
             }`}
           >
             {t('login.pin')}
@@ -149,11 +149,11 @@ export default function LoginPage() {
         {mode === 'credentials' && (
           <form onSubmit={handleCredentialsSubmit} className="card space-y-4">
             <div>
-              <label className="block text-sm font-medium text-kiosko-muted mb-1">
+              <label className="block text-sm font-medium text-app-muted mb-1">
                 {t('login.username')}
               </label>
               <div className="relative">
-                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
+                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" />
                 <input
                   ref={usernameRef}
                   type="text"
@@ -167,11 +167,11 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-kiosko-muted mb-1">
+              <label className="block text-sm font-medium text-app-muted mb-1">
                 {t('login.password')}
               </label>
               <div className="relative">
-                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
+                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" />
                 <input
                   type="password"
                   value={password}
@@ -197,7 +197,7 @@ export default function LoginPage() {
         {mode === 'pin' && (
           <div className="card">
             <div className="text-center mb-6">
-              <p className="text-kiosko-muted mb-4">{t('login.pinPrompt')}</p>
+              <p className="text-app-muted mb-4">{t('login.pinPrompt')}</p>
               
               {/* Display de PIN */}
               <div className="flex justify-center gap-3 mb-2">
@@ -207,7 +207,7 @@ export default function LoginPage() {
                     className={`w-12 h-14 rounded-lg border-2 flex items-center justify-center text-2xl font-bold transition-all ${
                       i < pin.length
                         ? 'border-primary-500 bg-primary-500/20 text-primary-400'
-                        : 'border-kiosko-border bg-kiosko-bg'
+                        : 'border-app-border bg-app-bg'
                     }`}
                   >
                     {i < pin.length ? '•' : ''}
@@ -255,7 +255,7 @@ export default function LoginPage() {
 
         {/* Footer - Solo mostrar si hay credenciales iniciales */}
         {initialCredentials && (
-          <p className="text-center text-kiosko-muted text-sm mt-6">
+          <p className="text-center text-app-muted text-sm mt-6">
             {t('login.defaultCredentials')}: <code className="text-primary-400">{initialCredentials.username}</code> / <code className="text-primary-400">{initialCredentials.password}</code>
           </p>
         )}

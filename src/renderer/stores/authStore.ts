@@ -118,7 +118,7 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => set({ error: null }),
     }),
     {
-      name: 'kiosko-auth',
+      name: 'app-auth',
       partialize: (state) => ({ user: state.user }),
     }
   )

@@ -67,7 +67,7 @@ export default function CategoriesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Categorías</h1>
-          <p className="text-kiosko-muted">
+          <p className="text-app-muted">
             Organiza tus productos en categorías
           </p>
         </div>
@@ -93,13 +93,13 @@ export default function CategoriesPage() {
             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => openModal(category)}
-                className="p-2 rounded-lg bg-kiosko-bg/80 backdrop-blur text-kiosko-muted hover:text-primary-400 transition-colors"
+                className="p-2 rounded-lg bg-app-bg/80 backdrop-blur text-app-muted hover:text-primary-400 transition-colors"
               >
                 <FiEdit2 size={16} />
               </button>
               <button
                 onClick={() => handleDelete(category)}
-                className="p-2 rounded-lg bg-kiosko-bg/80 backdrop-blur text-kiosko-muted hover:text-stock-critical transition-colors"
+                className="p-2 rounded-lg bg-app-bg/80 backdrop-blur text-app-muted hover:text-stock-critical transition-colors"
               >
                 <FiTrash2 size={16} />
               </button>
@@ -114,7 +114,7 @@ export default function CategoriesPage() {
                 <FiGrid size={32} style={{ color: category.color }} />
               </div>
               <h3 className="font-bold text-lg">{category.name}</h3>
-              <p className="text-sm text-kiosko-muted">
+              <p className="text-sm text-app-muted">
                 {category._count?.products || 0} productos
               </p>
             </div>
@@ -124,7 +124,7 @@ export default function CategoriesPage() {
         {/* Card para agregar */}
         <button
           onClick={() => openModal()}
-          className="card border-dashed border-2 flex flex-col items-center justify-center py-8 text-kiosko-muted hover:text-primary-400 hover:border-primary-400 transition-colors"
+          className="card border-dashed border-2 flex flex-col items-center justify-center py-8 text-app-muted hover:text-primary-400 hover:border-primary-400 transition-colors"
         >
           <FiPlus size={32} className="mb-2" />
           <span>Agregar categoría</span>
@@ -141,7 +141,7 @@ export default function CategoriesPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Nombre
                 </label>
                 <input
@@ -158,7 +158,7 @@ export default function CategoriesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-2">
+                <label className="block text-sm font-medium text-app-muted mb-2">
                   Color
                 </label>
                 <div className="grid grid-cols-9 gap-2">
@@ -169,7 +169,7 @@ export default function CategoriesPage() {
                       onClick={() => setFormData((d) => ({ ...d, color }))}
                       className={`w-8 h-8 rounded-lg transition-transform hover:scale-110 ${
                         formData.color === color
-                          ? 'ring-2 ring-offset-2 ring-offset-kiosko-card ring-white'
+                          ? 'ring-2 ring-offset-2 ring-offset-app-card ring-white'
                           : ''
                       }`}
                       style={{ backgroundColor: color }}
@@ -179,8 +179,8 @@ export default function CategoriesPage() {
               </div>
 
               {/* Preview */}
-              <div className="p-4 bg-kiosko-bg rounded-lg">
-                <p className="text-sm text-kiosko-muted mb-2">Vista previa:</p>
+              <div className="p-4 bg-app-bg rounded-lg">
+                <p className="text-sm text-app-muted mb-2">Vista previa:</p>
                 <div className="flex items-center gap-3">
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center"

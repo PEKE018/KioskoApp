@@ -21,8 +21,8 @@ function generateSecurePassword(): string {
 // Configurar la ruta de la base de datos
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 const dbPath = isDev 
-  ? path.join(__dirname, '../../../prisma/kioskoapp.db')
-  : path.join(app.getPath('userData'), 'kioskoapp.db');
+  ? path.join(__dirname, '../../../prisma/stockpos.db')
+  : path.join(app.getPath('userData'), 'stockpos.db');
 
 // Crear directorio si no existe
 const dbDir = path.dirname(dbPath);
@@ -214,7 +214,7 @@ CREATE INDEX IF NOT EXISTS "CreditPayment_createdAt_idx" ON "CreditPayment"("cre
 -- Tabla AppConfig
 CREATE TABLE IF NOT EXISTS "AppConfig" (
     "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'config',
-    "businessName" TEXT NOT NULL DEFAULT 'Mi Kiosko',
+    "businessName" TEXT NOT NULL DEFAULT 'Mi Negocio',
     "businessAddress" TEXT,
     "businessPhone" TEXT,
     "businessCuit" TEXT,
@@ -330,7 +330,7 @@ async function checkForEmptyDatabaseWithBackups(): Promise<void> {
       ? path.join(__dirname, '../../../backups')
       : path.join(app.getPath('userData'), 'backups');
     
-    const documentsBackupDir = path.join(app.getPath('documents'), 'KioskoApp-Backups');
+    const documentsBackupDir = path.join(app.getPath('documents'), 'stockpos-backups');
     
     let backupsFound: Array<{ path: string; size: number; mtime: Date; name: string }> = [];
     
@@ -438,7 +438,7 @@ async function checkForPossibleDataLoss(): Promise<boolean> {
     ? path.join(__dirname, '../../../backups')
     : path.join(app.getPath('userData'), 'backups');
   
-  const documentsBackupDir = path.join(app.getPath('documents'), 'KioskoApp-Backups');
+  const documentsBackupDir = path.join(app.getPath('documents'), 'stockpos-backups');
   
   let backupsFound: string[] = [];
   
@@ -634,6 +634,51 @@ export async function initDatabase(): Promise<void> {
       }
     }
 
+    // Migración: agregar campos de pago mixto a Sale (v1.0.15)
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "Sale" ADD COLUMN "mixedPaymentMethod1" TEXT;');
+      logger.info('Database', 'Columna mixedPaymentMethod1 agregada a Sale');
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column') || e.message?.includes('already exists')) {
+        logger.debug('Database', 'Columna mixedPaymentMethod1 ya existe en Sale');
+      } else {
+        logger.error('Database', 'Error agregando mixedPaymentMethod1 a Sale', e);
+      }
+    }
+
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "Sale" ADD COLUMN "mixedPaymentAmount1" REAL;');
+      logger.info('Database', 'Columna mixedPaymentAmount1 agregada a Sale');
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column') || e.message?.includes('already exists')) {
+        logger.debug('Database', 'Columna mixedPaymentAmount1 ya existe en Sale');
+      } else {
+        logger.error('Database', 'Error agregando mixedPaymentAmount1 a Sale', e);
+      }
+    }
+
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "Sale" ADD COLUMN "mixedPaymentMethod2" TEXT;');
+      logger.info('Database', 'Columna mixedPaymentMethod2 agregada a Sale');
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column') || e.message?.includes('already exists')) {
+        logger.debug('Database', 'Columna mixedPaymentMethod2 ya existe en Sale');
+      } else {
+        logger.error('Database', 'Error agregando mixedPaymentMethod2 a Sale', e);
+      }
+    }
+
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "Sale" ADD COLUMN "mixedPaymentAmount2" REAL;');
+      logger.info('Database', 'Columna mixedPaymentAmount2 agregada a Sale');
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column') || e.message?.includes('already exists')) {
+        logger.debug('Database', 'Columna mixedPaymentAmount2 ya existe en Sale');
+      } else {
+        logger.error('Database', 'Error agregando mixedPaymentAmount2 a Sale', e);
+      }
+    }
+
     // Migración: crear tabla ComboComponent si no existe
     try {
       await prisma.$executeRawUnsafe(`
@@ -702,7 +747,7 @@ export async function initDatabase(): Promise<void> {
       
       const credentialsContent = `
 ========================================
-   CREDENCIALES INICIALES - KioskoApp
+   CREDENCIALES INICIALES - StockPOS
 ========================================
 
 Usuario: admin
@@ -731,7 +776,7 @@ de configurar su nueva contraseña.
       await prisma.appConfig.create({
         data: {
           id: 'config',
-          businessName: 'Mi Kiosko',
+          businessName: 'Mi Negocio',
         }
       });
       logger.info('Database', 'Configuracion inicial creada');

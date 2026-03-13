@@ -1,10 +1,10 @@
 /**
- * Sistema de Auto-Actualización para KioskoApp
+ * Sistema de Auto-Actualización para StockPOS
  * Usa electron-updater para verificar y descargar actualizaciones
  */
 
 import { autoUpdater } from 'electron-updater';
-import { BrowserWindow, ipcMain, dialog, app } from 'electron';
+import { BrowserWindow, ipcMain, app } from 'electron';
 import { logger } from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
@@ -15,9 +15,9 @@ let mainWindow: BrowserWindow | null = null;
 export function setupAutoUpdater(window: BrowserWindow): void {
   mainWindow = window;
 
-  // Configuración - Descargar automáticamente para que funcione sin UI
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true; // Instalar al cerrar
+  // Configuración manual: solo notificar y descargar cuando el usuario lo decida
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
 
   // Logging
   autoUpdater.logger = {
@@ -34,7 +34,7 @@ export function setupAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-available', (info) => {
-    logger.info('Updater', 'Actualización disponible, descargando...', info);
+    logger.info('Updater', 'Actualización disponible', info);
     sendToRenderer('update-available', {
       version: info.version,
       releaseDate: info.releaseDate,
@@ -86,24 +86,6 @@ export function setupAutoUpdater(window: BrowserWindow): void {
       version: info.version,
       releaseNotes: info.releaseNotes,
     });
-
-    // Mostrar diálogo nativo para reiniciar
-    dialog.showMessageBox(mainWindow!, {
-      type: 'info',
-      title: 'Actualización lista',
-      message: `Nueva versión ${info.version} descargada`,
-      detail: 'La actualización se descargó correctamente. ¿Desea reiniciar ahora para aplicar los cambios?',
-      buttons: ['Reiniciar ahora', 'Más tarde'],
-      defaultId: 0,
-      cancelId: 1,
-    }).then((result) => {
-      if (result.response === 0) {
-        logger.info('Updater', 'Usuario eligió reiniciar para actualizar');
-        autoUpdater.quitAndInstall(false, true);
-      } else {
-        logger.info('Updater', 'Usuario pospuso la actualización');
-      }
-    });
   });
 
   // Registrar handlers IPC
@@ -123,10 +105,15 @@ function registerUpdateHandlers(): void {
   ipcMain.handle('updater:check', async () => {
     try {
       const result = await autoUpdater.checkForUpdates();
+      const currentVersion = app.getVersion();
+      const availableVersion = result?.updateInfo?.version;
+      const updateAvailable = Boolean(availableVersion && availableVersion !== currentVersion);
+
       return { 
         success: true, 
-        updateAvailable: result?.updateInfo?.version !== undefined,
-        version: result?.updateInfo?.version,
+        updateAvailable,
+        version: availableVersion,
+        currentVersion,
       };
     } catch (error) {
       logger.error('Updater', 'Error al verificar actualizaciones', error);
@@ -193,7 +180,7 @@ export function setUpdateFeedURL(url: string): void {
  */
 async function createPreUpdateBackup(newVersion: string): Promise<{ success: boolean; path?: string; error?: string }> {
   try {
-    const dbPath = path.join(app.getPath('userData'), 'kioskoapp.db');
+    const dbPath = path.join(app.getPath('userData'), 'stockpos.db');
     const backupDir = path.join(app.getPath('userData'), 'backups');
     
     // Asegurar que existe el directorio de backups
@@ -231,7 +218,7 @@ async function createPreUpdateBackup(newVersion: string): Promise<{ success: boo
     
     // También crear una copia en Documentos del usuario como respaldo adicional
     try {
-      const documentsBackupDir = path.join(app.getPath('documents'), 'KioskoApp-Backups');
+      const documentsBackupDir = path.join(app.getPath('documents'), 'stockpos-backups');
       if (!fs.existsSync(documentsBackupDir)) {
         fs.mkdirSync(documentsBackupDir, { recursive: true });
       }

@@ -23,7 +23,7 @@ process.on('uncaughtException', (error) => {
     `${new Date().toISOString()}\n${errorMsg}\n\n`,
     { flag: 'a' }
   );
-  dialog.showErrorBox('Error Fatal - KioskoApp', errorMsg);
+  dialog.showErrorBox('Error Fatal - StockPOS', errorMsg);
   app.quit();
 });
 
@@ -104,7 +104,7 @@ async function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
     },
-    title: 'KioskoApp',
+    title: 'StockPOS',
     autoHideMenuBar: true,
     backgroundColor: '#0f172a',
     icon: getIconPath(),
@@ -158,7 +158,7 @@ app.on('second-instance', () => {
 
 app.whenReady().then(async () => {
   try {
-    logger.info('App', 'Iniciando KioskoApp...');
+    logger.info('App', 'Iniciando StockPOS...');
     
     // Verificar licencia
     checkLicense();

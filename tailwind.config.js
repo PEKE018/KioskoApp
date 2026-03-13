@@ -27,8 +27,8 @@ export default {
           low: '#f59e0b',      // Amarillo - stock bajo
           ok: '#22c55e',       // Verde - stock OK
         },
-        // Fondos oscuros para modo kiosko
-        kiosko: {
+        // Fondos oscuros para la app
+        app: {
           bg: '#0f172a',
           card: '#1e293b',
           border: '#334155',

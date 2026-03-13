@@ -56,9 +56,11 @@ declare global {
       };
       cashRegister: {
         open: (initialAmount: number) => Promise<unknown>;
-        close: (finalAmount: number) => Promise<unknown>;
+          close: (finalAmount: number, notes?: string) => Promise<unknown>;
         getCurrent: () => Promise<unknown>;
         getHistory: () => Promise<unknown>;
+          getById: (id: string) => Promise<unknown>;
+        forceClose: () => Promise<unknown>;
       };
       reports: {
         getSalesByDay: (start: Date, end: Date) => Promise<unknown>;
@@ -103,9 +105,10 @@ declare global {
         download: () => Promise<unknown>;
         install: () => Promise<unknown>;
         getCurrentVersion: () => Promise<unknown>;
-        onUpdateAvailable: (callback: (info: unknown) => void) => void;
-        onDownloadProgress: (callback: (progress: unknown) => void) => void;
-        onUpdateDownloaded: (callback: (info: unknown) => void) => void;
+        onUpdateAvailable: (callback: (info: unknown) => void) => (() => void) | void;
+        onDownloadProgress: (callback: (progress: unknown) => void) => (() => void) | void;
+        onUpdateDownloaded: (callback: (info: unknown) => void) => (() => void) | void;
+        onUpdateError?: (callback: (error: unknown) => void) => (() => void) | void;
       };
     };
   }

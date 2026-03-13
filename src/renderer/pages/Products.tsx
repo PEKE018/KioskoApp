@@ -471,7 +471,7 @@ export default function ProductsPage() {
   return (
     <div className="h-full flex flex-col">
       {/* Header con pestañas */}
-      <div className="bg-kiosko-card border-b border-kiosko-border">
+      <div className="bg-app-card border-b border-app-border">
         <div className="flex items-center justify-between px-6 pt-4">
           <h1 className="text-2xl font-bold">Productos</h1>
           
@@ -533,8 +533,8 @@ export default function ProductsPage() {
             onClick={() => setActiveTab('gestion')}
             className={`px-6 py-3 rounded-t-lg font-medium flex items-center gap-2 transition-colors ${
               activeTab === 'gestion'
-                ? 'bg-kiosko-bg text-primary-400 border-t border-l border-r border-kiosko-border'
-                : 'text-kiosko-muted hover:text-kiosko-text'
+                ? 'bg-app-bg text-primary-400 border-t border-l border-r border-app-border'
+                : 'text-app-muted hover:text-app-text'
             }`}
           >
             <FiList size={18} />
@@ -544,8 +544,8 @@ export default function ProductsPage() {
             onClick={() => setActiveTab('stock')}
             className={`px-6 py-3 rounded-t-lg font-medium flex items-center gap-2 transition-colors ${
               activeTab === 'stock'
-                ? 'bg-kiosko-bg text-primary-400 border-t border-l border-r border-kiosko-border'
-                : 'text-kiosko-muted hover:text-kiosko-text'
+                ? 'bg-app-bg text-primary-400 border-t border-l border-r border-app-border'
+                : 'text-app-muted hover:text-app-text'
             }`}
           >
             <FiTruck size={18} />
@@ -555,8 +555,8 @@ export default function ProductsPage() {
             onClick={() => setActiveTab('rapida')}
             className={`px-6 py-3 rounded-t-lg font-medium flex items-center gap-2 transition-colors ${
               activeTab === 'rapida'
-                ? 'bg-kiosko-bg text-stock-warning border-t border-l border-r border-kiosko-border'
-                : 'text-kiosko-muted hover:text-kiosko-text'
+                ? 'bg-app-bg text-stock-warning border-t border-l border-r border-app-border'
+                : 'text-app-muted hover:text-app-text'
             }`}
           >
             <FiZap size={18} />
@@ -572,7 +572,7 @@ export default function ProductsPage() {
           {/* Filtros */}
           <div className="flex gap-4 mb-6">
             <div className="relative flex-1 max-w-md">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" />
               <input
                 type="text"
                 value={searchQuery}
@@ -583,7 +583,7 @@ export default function ProductsPage() {
             </div>
 
             <div className="relative">
-              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
+              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" />
               <select
                 value={selectedCategory || ''}
                 onChange={(e) => setSelectedCategory(e.target.value || null)}
@@ -603,10 +603,10 @@ export default function ProductsPage() {
           <div className="flex-1 overflow-auto">
             {isLoading ? (
               <div className="flex items-center justify-center h-64">
-                <p className="text-kiosko-muted">Cargando...</p>
+                <p className="text-app-muted">Cargando...</p>
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-kiosko-muted">
+              <div className="flex flex-col items-center justify-center h-64 text-app-muted">
                 <FiPackage size={48} className="mb-4 opacity-50" />
                 <p>No se encontraron productos</p>
               </div>
@@ -637,12 +637,12 @@ export default function ProductsPage() {
                           )}
                         </div>
                         {product.description && (
-                          <p className="text-sm text-kiosko-muted truncate max-w-xs">
+                          <p className="text-sm text-app-muted truncate max-w-xs">
                             {product.description}
                           </p>
                         )}
                         {product.isCombo && product.comboComponents && product.comboComponents.length > 0 && (
-                          <p className="text-xs text-kiosko-muted mt-1">
+                          <p className="text-xs text-app-muted mt-1">
                             Contiene: {product.comboComponents.map(c => `${c.quantity}x ${c.component.name}`).join(', ')}
                           </p>
                         )}
@@ -659,7 +659,7 @@ export default function ProductsPage() {
                             {product.category.name}
                           </span>
                         ) : (
-                          <span className="text-kiosko-muted">-</span>
+                          <span className="text-app-muted">-</span>
                         )}
                       </td>
                       <td className="text-right font-price font-medium">
@@ -667,7 +667,7 @@ export default function ProductsPage() {
                       </td>
                       <td className="text-center font-medium">
                         {product.isCombo ? (
-                          <span className="text-xs text-kiosko-muted">-</span>
+                          <span className="text-xs text-app-muted">-</span>
                         ) : (
                           product.stock
                         )}
@@ -683,13 +683,13 @@ export default function ProductsPage() {
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => openModal(product)}
-                            className="p-2 rounded-lg hover:bg-kiosko-bg text-kiosko-muted hover:text-primary-400 transition-colors"
+                            className="p-2 rounded-lg hover:bg-app-bg text-app-muted hover:text-primary-400 transition-colors"
                           >
                             <FiEdit2 size={18} />
                           </button>
                           <button
                             onClick={() => handleDelete(product)}
-                            className="p-2 rounded-lg hover:bg-kiosko-bg text-kiosko-muted hover:text-stock-critical transition-colors"
+                            className="p-2 rounded-lg hover:bg-app-bg text-app-muted hover:text-stock-critical transition-colors"
                           >
                             <FiTrash2 size={18} />
                           </button>
@@ -724,7 +724,7 @@ export default function ProductsPage() {
           {/* Filtros de stock */}
           <div className="p-6 pb-4 flex gap-4">
             <div className="relative flex-1">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" />
               <input
                 ref={stockSearchRef}
                 type="text"
@@ -735,7 +735,7 @@ export default function ProductsPage() {
               />
             </div>
             <div className="relative">
-              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" />
+              <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" />
               <select
                 value={stockCategoryFilter}
                 onChange={(e) => setStockCategoryFilter(e.target.value)}
@@ -754,7 +754,7 @@ export default function ProductsPage() {
           {/* Lista de productos para cargar */}
           <div className="flex-1 overflow-y-auto px-6 pb-4">
             {sortedStockProducts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-kiosko-muted">
+              <div className="flex flex-col items-center justify-center h-full text-app-muted">
                 <FiPackage size={64} className="mb-4 opacity-50" />
                 <p className="text-xl">No hay productos</p>
               </div>
@@ -787,7 +787,7 @@ export default function ProductsPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex gap-4 text-sm text-kiosko-muted">
+                        <div className="flex gap-4 text-sm text-app-muted">
                           <span className="font-mono">{product.barcode || 'Sin código'}</span>
                           <span>{formatPrice(product.price)}</span>
                         </div>
@@ -795,7 +795,7 @@ export default function ProductsPage() {
 
                       {/* Stock actual */}
                       <div className="text-center w-24">
-                        <p className="text-xs text-kiosko-muted">Stock actual</p>
+                        <p className="text-xs text-app-muted">Stock actual</p>
                         <p
                           className={`text-xl font-bold ${
                             product.stock <= product.minStock
@@ -811,7 +811,7 @@ export default function ProductsPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => updateQuantity(product.id, -1)}
-                          className="w-10 h-10 rounded-lg bg-kiosko-bg border border-kiosko-border flex items-center justify-center hover:bg-red-500/20 hover:border-red-500 transition-colors disabled:opacity-30"
+                          className="w-10 h-10 rounded-lg bg-app-bg border border-app-border flex items-center justify-center hover:bg-red-500/20 hover:border-red-500 transition-colors disabled:opacity-30"
                           disabled={qty === 0}
                         >
                           <FiMinus />
@@ -825,14 +825,14 @@ export default function ProductsPage() {
                           className={`w-20 h-12 text-center text-xl font-bold rounded-lg border-2 transition-all ${
                             hasQty
                               ? 'bg-stock-ok/10 border-stock-ok text-stock-ok'
-                              : 'bg-kiosko-bg border-kiosko-border'
+                              : 'bg-app-bg border-app-border'
                           }`}
                           min={0}
                         />
 
                         <button
                           onClick={() => updateQuantity(product.id, 1)}
-                          className="w-10 h-10 rounded-lg bg-kiosko-bg border border-kiosko-border flex items-center justify-center hover:bg-stock-ok/20 hover:border-stock-ok transition-colors"
+                          className="w-10 h-10 rounded-lg bg-app-bg border border-app-border flex items-center justify-center hover:bg-stock-ok/20 hover:border-stock-ok transition-colors"
                         >
                           <FiPlus />
                         </button>
@@ -841,19 +841,19 @@ export default function ProductsPage() {
                         <div className="flex gap-1 ml-2">
                           <button
                             onClick={() => updateQuantity(product.id, 5)}
-                            className="px-2 py-1 text-xs rounded bg-kiosko-bg border border-kiosko-border hover:bg-kiosko-border"
+                            className="px-2 py-1 text-xs rounded bg-app-bg border border-app-border hover:bg-app-border"
                           >
                             +5
                           </button>
                           <button
                             onClick={() => updateQuantity(product.id, 10)}
-                            className="px-2 py-1 text-xs rounded bg-kiosko-bg border border-kiosko-border hover:bg-kiosko-border"
+                            className="px-2 py-1 text-xs rounded bg-app-bg border border-app-border hover:bg-app-border"
                           >
                             +10
                           </button>
                           <button
                             onClick={() => updateQuantity(product.id, product.unitsPerBox || 12)}
-                            className="px-2 py-1 text-xs rounded bg-kiosko-bg border border-kiosko-border hover:bg-kiosko-border"
+                            className="px-2 py-1 text-xs rounded bg-app-bg border border-app-border hover:bg-app-border"
                             title={`+${product.unitsPerBox || 12} (caja)`}
                           >
                             +📦
@@ -863,8 +863,8 @@ export default function ProductsPage() {
 
                       {/* Nuevo stock */}
                       {hasQty && (
-                        <div className="text-center w-24 pl-4 border-l border-kiosko-border">
-                          <p className="text-xs text-kiosko-muted">Nuevo stock</p>
+                        <div className="text-center w-24 pl-4 border-l border-app-border">
+                          <p className="text-xs text-app-muted">Nuevo stock</p>
                           <p className="text-xl font-bold text-stock-ok">
                             {product.stock + qty}
                           </p>
@@ -879,7 +879,7 @@ export default function ProductsPage() {
 
           {/* Barra inferior fija cuando hay productos para cargar */}
           {productsToLoad.length > 0 && (
-            <div className="border-t border-kiosko-border bg-kiosko-card p-4">
+            <div className="border-t border-app-border bg-app-card p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <FiAlertCircle className="text-stock-warning" size={24} />
@@ -887,7 +887,7 @@ export default function ProductsPage() {
                     <p className="font-bold">
                       {productsToLoad.length} producto{productsToLoad.length > 1 ? 's' : ''} pendiente{productsToLoad.length > 1 ? 's' : ''}
                     </p>
-                    <p className="text-sm text-kiosko-muted">
+                    <p className="text-sm text-app-muted">
                       Total: {totalUnits} unidades
                     </p>
                   </div>
@@ -938,7 +938,7 @@ export default function ProductsPage() {
                 <div className="text-center mb-8">
                   <FiZap size={48} className="mx-auto mb-4 text-stock-warning" />
                   <h2 className="text-2xl font-bold mb-2">Carga Rápida de Productos</h2>
-                  <p className="text-kiosko-muted">
+                  <p className="text-app-muted">
                     Selecciona una categoría para agregar múltiples productos de forma rápida
                   </p>
                 </div>
@@ -952,7 +952,7 @@ export default function ProductsPage() {
                       style={{ borderLeft: `4px solid ${cat.color}` }}
                     >
                       <span className="text-lg font-bold">{cat.name}</span>
-                      <p className="text-sm text-kiosko-muted mt-1">
+                      <p className="text-sm text-app-muted mt-1">
                         {products.filter(p => p.categoryId === cat.id).length} productos
                       </p>
                     </button>
@@ -985,7 +985,7 @@ export default function ProductsPage() {
                     </div>
                   </div>
                   {quickProducts.length > 0 && (
-                    <span className="text-kiosko-muted">
+                    <span className="text-app-muted">
                       {quickProducts.length} producto{quickProducts.length > 1 ? 's' : ''} pendiente{quickProducts.length > 1 ? 's' : ''}
                     </span>
                   )}
@@ -999,7 +999,7 @@ export default function ProductsPage() {
                   </h3>
                   <div className="grid grid-cols-12 gap-4">
                     <div className="col-span-4">
-                      <label className="block text-sm text-kiosko-muted mb-1">Nombre *</label>
+                      <label className="block text-sm text-app-muted mb-1">Nombre *</label>
                       <input
                         ref={quickNameRef}
                         type="text"
@@ -1016,7 +1016,7 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm text-kiosko-muted mb-1">Precio *</label>
+                      <label className="block text-sm text-app-muted mb-1">Precio *</label>
                       <input
                         type="number"
                         value={quickForm.price}
@@ -1035,7 +1035,7 @@ export default function ProductsPage() {
                     </div>
                     {productSettings.showCostPrice && (
                       <div className="col-span-2">
-                        <label className="block text-sm text-kiosko-muted mb-1">Costo</label>
+                        <label className="block text-sm text-app-muted mb-1">Costo</label>
                         <input
                           type="number"
                           value={quickForm.cost}
@@ -1048,7 +1048,7 @@ export default function ProductsPage() {
                       </div>
                     )}
                     <div className="col-span-1">
-                      <label className="block text-sm text-kiosko-muted mb-1">Stock</label>
+                      <label className="block text-sm text-app-muted mb-1">Stock</label>
                       <input
                         type="number"
                         value={quickForm.stock}
@@ -1058,7 +1058,7 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm text-kiosko-muted mb-1">
+                      <label className="block text-sm text-app-muted mb-1">
                         {quickForm.autoBarcode ? 'Código (auto)' : 'Código'}
                       </label>
                       <input
@@ -1076,7 +1076,7 @@ export default function ProductsPage() {
                           onChange={(e) => setQuickForm(f => ({ ...f, autoBarcode: e.target.checked, barcode: '' }))}
                           className="w-3 h-3"
                         />
-                        <span className="text-xs text-kiosko-muted">Auto</span>
+                        <span className="text-xs text-app-muted">Auto</span>
                       </label>
                     </div>
                     <div className="col-span-1 flex items-end">
@@ -1089,7 +1089,7 @@ export default function ProductsPage() {
                       </button>
                     </div>
                   </div>
-                  <p className="text-xs text-kiosko-muted mt-2">
+                  <p className="text-xs text-app-muted mt-2">
                     Presiona Enter para agregar rápidamente
                   </p>
                 </div>
@@ -1104,18 +1104,18 @@ export default function ProductsPage() {
                       {quickProducts.map((qp, index) => (
                         <div
                           key={qp.tempId}
-                          className="flex items-center justify-between p-3 bg-kiosko-bg rounded-lg"
+                          className="flex items-center justify-between p-3 bg-app-bg rounded-lg"
                         >
                           <div className="flex items-center gap-4">
-                            <span className="text-kiosko-muted w-6">#{index + 1}</span>
+                            <span className="text-app-muted w-6">#{index + 1}</span>
                             <span className="font-medium">{qp.name}</span>
-                            <span className="text-sm text-kiosko-muted font-mono">
+                            <span className="text-sm text-app-muted font-mono">
                               {qp.autoBarcode ? '(auto)' : qp.barcode}
                             </span>
                           </div>
                           <div className="flex items-center gap-6">
                             <span className="font-price">{formatPrice(qp.price)}</span>
-                            <span className="text-kiosko-muted">Stock: {qp.stock}</span>
+                            <span className="text-app-muted">Stock: {qp.stock}</span>
                             <button
                               onClick={() => removeQuickProduct(qp.tempId)}
                               className="p-1 text-stock-critical hover:bg-stock-critical/20 rounded"
@@ -1127,7 +1127,7 @@ export default function ProductsPage() {
                       ))}
                     </div>
 
-                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-kiosko-border">
+                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-app-border">
                       <button
                         onClick={() => setQuickProducts([])}
                         className="btn-secondary"
@@ -1147,7 +1147,7 @@ export default function ProductsPage() {
                 )}
 
                 {quickProducts.length === 0 && (
-                  <div className="text-center text-kiosko-muted py-12">
+                  <div className="text-center text-app-muted py-12">
                     <FiPackage size={48} className="mx-auto mb-4 opacity-50" />
                     <p>Agrega productos usando el formulario de arriba</p>
                     <p className="text-sm">Todos se crearán en la categoría seleccionada</p>
@@ -1163,14 +1163,14 @@ export default function ProductsPage() {
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold mb-4 sticky top-0 bg-kiosko-card pb-2 -mt-2 pt-2 -mx-2 px-2 z-10">
+            <h2 className="text-xl font-bold mb-4 sticky top-0 bg-app-card pb-2 -mt-2 pt-2 -mx-2 px-2 z-10">
               {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Código de barras {!autoGenerateBarcode && '*'}
                   </label>
                   <input
@@ -1179,7 +1179,7 @@ export default function ProductsPage() {
                     onChange={(e) =>
                       setFormData((d) => ({ ...d, barcode: e.target.value }))
                     }
-                    className={`input font-mono ${autoGenerateBarcode ? 'opacity-50 bg-kiosko-bg' : ''}`}
+                    className={`input font-mono ${autoGenerateBarcode ? 'opacity-50 bg-app-bg' : ''}`}
                     required={!autoGenerateBarcode}
                     disabled={autoGenerateBarcode}
                     placeholder={autoGenerateBarcode ? 'Se generará automáticamente' : 'Escanear o ingresar código'}
@@ -1195,15 +1195,15 @@ export default function ProductsPage() {
                           setFormData((d) => ({ ...d, barcode: '' }));
                         }
                       }}
-                      className="w-4 h-4 rounded border-kiosko-border text-primary-500 focus:ring-primary-500"
+                      className="w-4 h-4 rounded border-app-border text-primary-500 focus:ring-primary-500"
                     />
-                    <span className="text-sm text-kiosko-muted">
+                    <span className="text-sm text-app-muted">
                       Sin código de barras (generar automático)
                     </span>
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Categoría
                   </label>
                   <select
@@ -1224,7 +1224,7 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Nombre del producto *
                 </label>
                 <input
@@ -1239,7 +1239,7 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Descripción
                 </label>
                 <input
@@ -1254,7 +1254,7 @@ export default function ProductsPage() {
 
               <div className={`grid gap-4 ${productSettings.showCostPrice ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Precio de venta *
                   </label>
                   <input
@@ -1271,7 +1271,7 @@ export default function ProductsPage() {
                 </div>
                 {productSettings.showCostPrice && (
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Costo
                     </label>
                     <input
@@ -1298,7 +1298,7 @@ export default function ProductsPage() {
                     onChange={(e) =>
                       setFormData((d) => ({ ...d, isCigarette: e.target.checked }))
                     }
-                    className="w-5 h-5 rounded border-kiosko-border text-amber-500 focus:ring-amber-500"
+                    className="w-5 h-5 rounded border-app-border text-amber-500 focus:ring-amber-500"
                   />
                   <label htmlFor="isCigarette" className="text-sm font-medium cursor-pointer">
                     🚬 Recargo en transferencia
@@ -1311,7 +1311,7 @@ export default function ProductsPage() {
                     id="separateCash"
                     checked={formData.separateCash}
                     onChange={(e) => setFormData((d) => ({ ...d, separateCash: e.target.checked }))}
-                    className="w-5 h-5 rounded border-kiosko-border text-emerald-500 focus:ring-emerald-500"
+                    className="w-5 h-5 rounded border-app-border text-emerald-500 focus:ring-emerald-500"
                   />
                   <label htmlFor="separateCash" className="text-sm font-medium cursor-pointer">
                     💰 Caja Aparte
@@ -1322,7 +1322,7 @@ export default function ProductsPage() {
               {/* Stock */}
               <div className={`grid gap-4 ${productSettings.showUnitsPerBox ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Stock actual
                     </label>
                     <input
@@ -1336,7 +1336,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1">
                       Stock mínimo
                     </label>
                     <input
@@ -1351,7 +1351,7 @@ export default function ProductsPage() {
                   </div>
                   {productSettings.showUnitsPerBox && (
                     <div>
-                      <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                      <label className="block text-sm font-medium text-app-muted mb-1">
                         Unidades/caja
                       </label>
                       <input
@@ -1432,7 +1432,7 @@ export default function ProductsPage() {
               
               {/* Nombre del combo */}
               <div>
-                <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                <label className="block text-sm font-medium text-app-muted mb-1">
                   Nombre del Combo *
                 </label>
                 <input
@@ -1448,11 +1448,11 @@ export default function ProductsPage() {
               {/* Precio y Categoría */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Precio de venta *
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted">$</span>
                     <input
                       type="number"
                       value={formData.price}
@@ -1465,7 +1465,7 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-kiosko-muted mb-1">
+                  <label className="block text-sm font-medium text-app-muted mb-1">
                     Categoría
                   </label>
                   <select
@@ -1482,15 +1482,15 @@ export default function ProductsPage() {
               </div>
 
               {/* Productos del combo */}
-              <div className="p-4 bg-kiosko-bg rounded-lg border border-kiosko-border">
+              <div className="p-4 bg-app-bg rounded-lg border border-app-border">
                 <h4 className="font-medium mb-3">Productos incluidos</h4>
                 
                 {comboComponents.length > 0 ? (
                   <div className="space-y-2 mb-3">
                     {comboComponents.map((comp, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 bg-kiosko-card rounded border border-kiosko-border">
+                      <div key={index} className="flex items-center gap-2 p-2 bg-app-card rounded border border-app-border">
                         <span className="flex-1 text-sm">{comp.name}</span>
-                        <span className="text-kiosko-muted">×</span>
+                        <span className="text-app-muted">×</span>
                         <input
                           type="number"
                           value={comp.quantity}
@@ -1519,9 +1519,9 @@ export default function ProductsPage() {
                 )}
                 
                 {/* Buscador y Grid de productos para agregar */}
-                <div className="border-t border-kiosko-border pt-3">
+                <div className="border-t border-app-border pt-3">
                   <div className="relative mb-2">
-                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-kiosko-muted" size={14} />
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" size={14} />
                     <input
                       type="text"
                       value={comboProductSearch}
@@ -1542,7 +1542,7 @@ export default function ProductsPage() {
                             setComboComponents(prev => [...prev, { productId: p.id, quantity: 1, name: p.name }]);
                             setComboProductSearch('');
                           }}
-                          className="text-left p-2 text-xs bg-kiosko-card hover:bg-primary-600/20 rounded border border-kiosko-border truncate transition-colors"
+                          className="text-left p-2 text-xs bg-app-card hover:bg-primary-600/20 rounded border border-app-border truncate transition-colors"
                         >
                           + {p.name}
                         </button>
@@ -1551,7 +1551,7 @@ export default function ProductsPage() {
                       .filter(p => !p.isCombo && !comboComponents.find(c => c.productId === p.id))
                       .filter(p => comboProductSearch === '' || p.name.toLowerCase().includes(comboProductSearch.toLowerCase()))
                       .length === 0 && (
-                        <p className="col-span-2 text-center text-sm text-kiosko-muted py-4">No se encontraron productos</p>
+                        <p className="col-span-2 text-center text-sm text-app-muted py-4">No se encontraron productos</p>
                       )}
                   </div>
                 </div>

@@ -5,12 +5,12 @@ import App from './App';
 import './styles/globals.css';
 import './i18n'; // Inicializar i18n
 
-console.log('[KioskoApp] Iniciando renderer...');
-console.log('[KioskoApp] window.api disponible:', typeof (window as any).api);
+console.log('[StockPOS] Iniciando renderer...');
+console.log('[StockPOS] window.api disponible:', typeof (window as any).api);
 
 try {
   const root = document.getElementById('root');
-  console.log('[KioskoApp] Root element:', root);
+  console.log('[StockPOS] Root element:', root);
   
   if (root) {
     ReactDOM.createRoot(root).render(
@@ -20,10 +20,10 @@ try {
         </HashRouter>
       </React.StrictMode>
     );
-    console.log('[KioskoApp] React montado correctamente');
+    console.log('[StockPOS] React montado correctamente');
   } else {
-    console.error('[KioskoApp] No se encontró el elemento root');
+    console.error('[StockPOS] No se encontró el elemento root');
   }
 } catch (error) {
-  console.error('[KioskoApp] Error al montar React:', error);
+  console.error('[StockPOS] Error al montar React:', error);
 }

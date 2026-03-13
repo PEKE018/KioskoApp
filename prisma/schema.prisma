@@ -1,4 +1,4 @@
-// Esquema de base de datos para KioskoApp
+// Esquema de base de datos para StockPOS
 // SQLite + Prisma ORM
 
 generator client {
@@ -318,7 +318,7 @@ model AppConfig {
   id        String   @id @default("config")
   
   // Datos del negocio
-  businessName    String  @default("Mi Kiosko")
+  businessName    String  @default("Mi Negocio")
   businessAddress String?
   businessPhone   String?
   businessCuit    String?

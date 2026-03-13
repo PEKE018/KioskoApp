@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "KioskoApp",
-    "description": "Kiosk Management System"
+    "name": "StockPOS",
+    "description": "Sales Management System"
   },
   "nav": {
     "sales": "Sales",

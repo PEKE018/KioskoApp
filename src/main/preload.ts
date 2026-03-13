@@ -74,9 +74,11 @@ contextBridge.exposeInMainWorld('api', {
   // === CAJA ===
   cashRegister: {
     open: (initialAmount: number) => ipcRenderer.invoke('cashRegister:open', initialAmount),
-    close: (finalAmount: number) => ipcRenderer.invoke('cashRegister:close', finalAmount),
+      close: (finalAmount: number, notes?: string) => ipcRenderer.invoke('cashRegister:close', finalAmount, notes),
     getCurrent: () => ipcRenderer.invoke('cashRegister:getCurrent'),
     getHistory: () => ipcRenderer.invoke('cashRegister:getHistory'),
+      getById: (id: string) => ipcRenderer.invoke('cashRegister:getById', id),
+    forceClose: () => ipcRenderer.invoke('cashRegister:forceClose'),
   },
 
   // === REPORTES ===
@@ -140,16 +142,24 @@ contextBridge.exposeInMainWorld('api', {
     install: () => ipcRenderer.invoke('updater:install'),
     getCurrentVersion: () => ipcRenderer.invoke('updater:getCurrentVersion'),
     onUpdateAvailable: (callback: (info: unknown) => void) => {
-      ipcRenderer.on('update-available', (_, info) => callback(info));
+      const listener = (_: Electron.IpcRendererEvent, info: unknown) => callback(info);
+      ipcRenderer.on('update-available', listener);
+      return () => ipcRenderer.removeListener('update-available', listener);
     },
     onDownloadProgress: (callback: (progress: unknown) => void) => {
-      ipcRenderer.on('update-progress', (_, progress) => callback(progress));
+      const listener = (_: Electron.IpcRendererEvent, progress: unknown) => callback(progress);
+      ipcRenderer.on('update-progress', listener);
+      return () => ipcRenderer.removeListener('update-progress', listener);
     },
     onUpdateDownloaded: (callback: (info: unknown) => void) => {
-      ipcRenderer.on('update-downloaded', (_, info) => callback(info));
+      const listener = (_: Electron.IpcRendererEvent, info: unknown) => callback(info);
+      ipcRenderer.on('update-downloaded', listener);
+      return () => ipcRenderer.removeListener('update-downloaded', listener);
     },
     onUpdateError: (callback: (error: unknown) => void) => {
-      ipcRenderer.on('update-error', (_, error) => callback(error));
+      const listener = (_: Electron.IpcRendererEvent, error: unknown) => callback(error);
+      ipcRenderer.on('update-error', listener);
+      return () => ipcRenderer.removeListener('update-error', listener);
     },
   },
 });
@@ -206,9 +216,11 @@ declare global {
       };
       cashRegister: {
         open: (initialAmount: number) => Promise<unknown>;
-        close: (finalAmount: number) => Promise<unknown>;
+          close: (finalAmount: number, notes?: string) => Promise<unknown>;
         getCurrent: () => Promise<unknown>;
         getHistory: () => Promise<unknown>;
+          getById: (id: string) => Promise<unknown>;
+          forceClose: () => Promise<unknown>;
       };
       reports: {
         getSalesByDay: (start: Date, end: Date) => Promise<unknown>;
@@ -253,9 +265,10 @@ declare global {
         download: () => Promise<unknown>;
         install: () => Promise<unknown>;
         getCurrentVersion: () => Promise<unknown>;
-        onUpdateAvailable: (callback: (info: unknown) => void) => void;
-        onDownloadProgress: (callback: (progress: unknown) => void) => void;
-        onUpdateDownloaded: (callback: (info: unknown) => void) => void;
+          onUpdateAvailable: (callback: (info: unknown) => void) => (() => void) | void;
+          onDownloadProgress: (callback: (progress: unknown) => void) => (() => void) | void;
+          onUpdateDownloaded: (callback: (info: unknown) => void) => (() => void) | void;
+          onUpdateError: (callback: (error: unknown) => void) => (() => void) | void;
       };
     };
   }

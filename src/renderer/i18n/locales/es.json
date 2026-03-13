@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "KioskoApp",
-    "description": "Sistema de gestión de kiosco"
+    "name": "StockPOS",
+    "description": "Sistema de gestión de ventas"
   },
   "nav": {
     "sales": "Ventas",
@@ -21,7 +21,7 @@
     "cashier": "Cajero"
   },
   "login": {
-    "title": "Sistema de gestión de kiosco",
+    "title": "Sistema de gestión de ventas",
     "credentials": "Usuario",
     "pin": "PIN Rápido",
     "username": "Usuario",

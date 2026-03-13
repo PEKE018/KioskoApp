@@ -1,5 +1,5 @@
 /**
- * Sistema de Backup y Restauración para KioskoApp
+ * Sistema de Backup y Restauración para StockPOS
  * Permite crear, restaurar y gestionar backups de la base de datos
  */
 
@@ -11,8 +11,8 @@ import { logger } from '../utils/logger';
 // Obtener ruta de la base de datos
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 const dbPath = isDev 
-  ? path.join(__dirname, '../../../prisma/kioskoapp.db')
-  : path.join(app.getPath('userData'), 'kioskoapp.db');
+  ? path.join(__dirname, '../../../prisma/stockpos.db')
+  : path.join(app.getPath('userData'), 'stockpos.db');
 
 const backupDir = isDev
   ? path.join(__dirname, '../../../backups')
@@ -39,7 +39,7 @@ function generateBackupName(): string {
     .replace(/[:.]/g, '-')
     .replace('T', '_')
     .split('Z')[0];
-  return `kioskoapp-backup-${dateStr}.db`;
+  return `stockpos-backup-${dateStr}.db`;
 }
 
 // Crear backup de la base de datos
@@ -127,7 +127,7 @@ function listBackups(): BackupInfo[] {
     const backups: BackupInfo[] = [];
 
     for (const file of files) {
-      if (file.endsWith('.db') && file.startsWith('kioskoapp-backup-')) {
+      if (file.endsWith('.db') && file.startsWith('stockpos-backup-')) {
         const filePath = path.join(backupDir, file);
         const stats = fs.statSync(filePath);
         

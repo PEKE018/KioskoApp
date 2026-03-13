@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FiDownload, FiX, FiRefreshCw, FiCheckCircle } from 'react-icons/fi';
+import {
+  LAST_CHECKED_VERSION_KEY,
+  DISMISSED_VERSION_KEY,
+  clearPendingUpdateIfInstalled,
+  getPendingUpdate,
+  setPendingUpdate,
+} from '../utils/updateState';
 
 interface UpdateInfo {
   version?: string;
@@ -10,12 +17,23 @@ interface CheckResult {
   success: boolean;
   updateAvailable?: boolean;
   version?: string;
+  currentVersion?: string;
   error?: string;
 }
 
 interface DownloadResult {
   success: boolean;
   error?: string;
+}
+
+interface VersionResult {
+  success?: boolean;
+  version?: string;
+}
+
+interface CashRegisterResult {
+  success: boolean;
+  data?: { id: string } | null;
 }
 
 type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
@@ -27,6 +45,30 @@ export default function UpdateNotification() {
   const [dismissed, setDismissed] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
 
+  const markVersionAsHandled = useCallback((version: string) => {
+    localStorage.setItem(DISMISSED_VERSION_KEY, version);
+  }, []);
+
+  // Verificar si una versión ya fue descartada o verificada
+  const isVersionAlreadyHandled = useCallback((version: string): boolean => {
+    const dismissedVersion = localStorage.getItem(DISMISSED_VERSION_KEY);
+    const lastCheckedVersion = localStorage.getItem(LAST_CHECKED_VERSION_KEY);
+    
+    // Si el usuario descartó esta versión específica, no mostrar
+    if (dismissedVersion === version) {
+      console.log('[UpdateNotification] Versión ya descartada:', version);
+      return true;
+    }
+    
+    // Si ya verificamos y no hay actualización para esta versión, no volver a molestar
+    if (lastCheckedVersion === version) {
+      console.log('[UpdateNotification] Versión ya verificada como actual:', version);
+      return true;
+    }
+    
+    return false;
+  }, []);
+
   // Función para verificar actualizaciones manualmente
   const checkForUpdates = useCallback(async () => {
     try {
@@ -35,49 +77,103 @@ export default function UpdateNotification() {
       const result = await window.api.updater.check() as CheckResult;
       console.log('[UpdateNotification] Resultado:', result);
       
-      if (result.success && result.updateAvailable) {
-        setUpdateInfo({ version: result.version });
-        setStatus('available');
+      if (result.success && result.updateAvailable && result.version) {
+        // Solo mostrar si es una versión que no hemos descartado antes
+        if (!isVersionAlreadyHandled(result.version)) {
+          setUpdateInfo({ version: result.version });
+          setErrorMsg('');
+          setStatus('available');
+          setDismissed(false);
+        } else {
+          // Ya manejamos esta versión, no mostrar
+          setStatus('idle');
+        }
+      } else if (result.success && !result.updateAvailable) {
+        // No hay actualización - guardar versión actual como verificada
+        // para no volver a verificar hasta que salga una nueva
+        const currentResult = await window.api.updater.getCurrentVersion() as VersionResult;
+        if (currentResult?.version) {
+          clearPendingUpdateIfInstalled(currentResult.version);
+          localStorage.setItem(LAST_CHECKED_VERSION_KEY, currentResult.version);
+          console.log('[UpdateNotification] Guardada versión actual:', currentResult.version);
+        }
         setDismissed(false);
+        setStatus('idle');
       } else {
-        // No hay actualización disponible - volver a idle
         setStatus('idle');
       }
     } catch (error) {
       console.error('[UpdateNotification] Error al verificar:', error);
       setStatus('idle');
     }
-  }, []);
+  }, [isVersionAlreadyHandled]);
+
+  // Función para descartar y recordar
+  const handleDismiss = useCallback(() => {
+    if (updateInfo?.version) {
+      // Guardar que el usuario descartó esta versión específica
+      markVersionAsHandled(updateInfo.version);
+      console.log('[UpdateNotification] Usuario descartó versión:', updateInfo.version);
+    }
+    setDismissed(true);
+  }, [markVersionAsHandled, updateInfo?.version]);
 
   useEffect(() => {
     // Escuchar eventos de actualización
-    window.api.updater.onUpdateAvailable((info: unknown) => {
+    const offAvailable = window.api.updater.onUpdateAvailable((info: unknown) => {
       console.log('[UpdateNotification] Evento update-available:', info);
       const data = info as UpdateInfo;
-      setUpdateInfo(data);
-      setStatus('available');
-      setDismissed(false);
+      
+      // Solo mostrar si no fue descartada
+      if (data.version && !isVersionAlreadyHandled(data.version)) {
+        setPendingUpdate({
+          version: data.version,
+          releaseNotes: data.releaseNotes,
+          status: 'available',
+        });
+        setUpdateInfo(data);
+        setErrorMsg('');
+        setStatus('available');
+        setDismissed(false);
+      }
     });
 
-    window.api.updater.onDownloadProgress((progressInfo: unknown) => {
+    const offProgress = window.api.updater.onDownloadProgress((progressInfo: unknown) => {
       const data = progressInfo as { percent?: number };
       setStatus('downloading');
       setProgress(data.percent || 0);
     });
 
-    window.api.updater.onUpdateDownloaded((info: unknown) => {
+    const offDownloaded = window.api.updater.onUpdateDownloaded((info: unknown) => {
       console.log('[UpdateNotification] Evento update-downloaded:', info);
       const data = info as UpdateInfo;
+      if (data.version) {
+        setPendingUpdate({
+          version: data.version,
+          releaseNotes: data.releaseNotes,
+          status: 'downloaded',
+        });
+      }
       setUpdateInfo(data);
       setStatus('downloaded');
+      
+      // Limpiar versión descartada ya que se descargó
+      if (data.version) {
+        localStorage.removeItem(DISMISSED_VERSION_KEY);
+      }
     });
 
     // Escuchar evento de error
+    let offError = () => {};
     if (window.api.updater.onUpdateError) {
-      window.api.updater.onUpdateError((error: unknown) => {
+      offError = window.api.updater.onUpdateError((error: unknown) => {
         console.error('[UpdateNotification] Error de actualización:', error);
+        if (updateInfo?.version) {
+          markVersionAsHandled(updateInfo.version);
+          setDismissed(true);
+        }
         setStatus('error');
-        setErrorMsg(String(error) || 'Error desconocido');
+        setErrorMsg(typeof error === 'object' && error !== null && 'message' in error ? String((error as { message?: string }).message) : String(error) || 'Error desconocido');
       });
     }
 
@@ -86,7 +182,7 @@ export default function UpdateNotification() {
       checkForUpdates();
     }, 5000);
 
-    // Verificar cada hora
+    // Verificar cada hora (pero solo mostrará si hay versión nueva no descartada)
     const interval = setInterval(() => {
       checkForUpdates();
     }, 60 * 60 * 1000);
@@ -94,8 +190,12 @@ export default function UpdateNotification() {
     return () => {
       clearTimeout(initialCheck);
       clearInterval(interval);
+      offAvailable();
+      offProgress();
+      offDownloaded();
+      offError();
     };
-  }, [checkForUpdates]);
+  }, [checkForUpdates, isVersionAlreadyHandled, markVersionAsHandled, updateInfo?.version]);
 
   const handleDownload = async () => {
     try {
@@ -115,10 +215,26 @@ export default function UpdateNotification() {
   };
 
   const handleInstall = async () => {
+    const cashResult = await window.api.cashRegister.getCurrent() as CashRegisterResult;
+    if (cashResult.success && cashResult.data) {
+      setStatus('error');
+      setErrorMsg('Cierre la caja antes de instalar una actualización.');
+      return;
+    }
+
     await window.api.updater.install();
   };
 
   const handleRetry = () => {
+    const pendingUpdate = getPendingUpdate();
+    if (pendingUpdate) {
+      setUpdateInfo({ version: pendingUpdate.version, releaseNotes: pendingUpdate.releaseNotes });
+      setStatus(pendingUpdate.status);
+      setDismissed(false);
+      setErrorMsg('');
+      return;
+    }
+
     setStatus('idle');
     setErrorMsg('');
     checkForUpdates();
@@ -131,7 +247,7 @@ export default function UpdateNotification() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-sm animate-enter">
-      <div className="bg-kiosko-card border border-primary-500/50 rounded-xl shadow-2xl shadow-primary-500/20 overflow-hidden">
+      <div className="bg-app-card border border-primary-500/50 rounded-xl shadow-2xl shadow-primary-500/20 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 bg-primary-500/10 border-b border-primary-500/30">
           <div className="flex items-center gap-2 text-primary-400">
@@ -142,8 +258,8 @@ export default function UpdateNotification() {
           </div>
           {status !== 'downloading' && (
             <button
-              onClick={() => setDismissed(true)}
-              className="text-kiosko-muted hover:text-white transition-colors"
+              onClick={handleDismiss}
+              className="text-app-muted hover:text-white transition-colors"
             >
               <FiX size={18} />
             </button>
@@ -157,8 +273,8 @@ export default function UpdateNotification() {
               <p className="text-sm mb-1">
                 Nueva versión <span className="font-bold text-primary-400">v{updateInfo?.version}</span>
               </p>
-              <p className="text-xs text-kiosko-muted mb-4">
-                Hay una nueva versión de KioskoApp disponible
+              <p className="text-xs text-app-muted mb-4">
+                Hay una nueva versión de StockPOS disponible
               </p>
               <button
                 onClick={handleDownload}
@@ -182,12 +298,12 @@ export default function UpdateNotification() {
                   style={{ width: `${Math.max(progress, 2)}%` }}
                 />
               </div>
-              <p className="text-xs text-kiosko-muted text-center">
+              <p className="text-xs text-app-muted text-center">
                 {progress > 0 
                   ? `${progress.toFixed(0)}% completado` 
                   : 'Iniciando descarga (~117 MB)...'}
               </p>
-              <p className="text-xs text-kiosko-muted text-center mt-1 opacity-70">
+              <p className="text-xs text-app-muted text-center mt-1 opacity-70">
                 Esto puede tomar varios minutos
               </p>
             </>
@@ -199,7 +315,7 @@ export default function UpdateNotification() {
                 <FiCheckCircle size={18} />
                 <span className="text-sm font-medium">¡Lista para instalar!</span>
               </div>
-              <p className="text-xs text-kiosko-muted mb-4">
+              <p className="text-xs text-app-muted mb-4">
                 La actualización se descargó correctamente. 
                 Reinicia para aplicar los cambios.
               </p>
@@ -218,7 +334,7 @@ export default function UpdateNotification() {
               <p className="text-sm text-red-400 mb-2">
                 No se pudo descargar la actualización
               </p>
-              <p className="text-xs text-kiosko-muted mb-4">
+              <p className="text-xs text-app-muted mb-4">
                 {errorMsg || 'Intenta nuevamente más tarde'}
               </p>
               <button

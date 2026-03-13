@@ -1,5 +1,5 @@
 /**
- * Logger centralizado para KioskoApp
+ * Logger centralizado para StockPOS
  * Reemplaza todos los console.log/error por logging persistente
  */
 
@@ -43,7 +43,7 @@ class Logger {
 
   private getLogFilePath(): string {
     const date = new Date().toISOString().split('T')[0];
-    return path.join(this.logDir, `kioskoapp-${date}.log`);
+    return path.join(this.logDir, `stockpos-${date}.log`);
   }
 
   private formatEntry(entry: LogEntry): string {
@@ -80,7 +80,7 @@ class Logger {
     try {
       const files = fs.readdirSync(this.logDir);
       const logFiles = files
-        .filter(f => f.startsWith('kioskoapp-') && f.endsWith('.log'))
+        .filter(f => f.startsWith('stockpos-') && f.endsWith('.log'))
         .map(f => ({
           name: f,
           path: path.join(this.logDir, f),
