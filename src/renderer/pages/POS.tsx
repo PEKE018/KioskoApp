@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePOSStore, usePOSTotals } from '../stores/posStore';
 import { useProductsStore, Product } from '../stores/productsStore';
 import { useAuthStore } from '../stores/authStore';
+import { usePosUIStore } from '../stores/posUIStore';
 import {
   FiTrash2,
   FiPlus,
@@ -16,6 +17,9 @@ import {
   FiPackage,
   FiAlertCircle,
   FiUsers,
+  FiMic,
+  FiMicOff,
+  FiCommand,
 } from 'react-icons/fi';
 
 type PaymentMethod = 'CASH' | 'DEBIT' | 'CREDIT' | 'MIXED' | 'TRANSFER' | 'FIADO' | 'OTHER';
@@ -112,6 +116,21 @@ export default function POSPage() {
   const { searchProducts, fetchProducts, categories, fetchCategories, createProduct } = useProductsStore();
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
+  
+  // UI del POS (fullscreen, atajos, voz)
+  const { 
+    isFullscreen, 
+    showShortcutsPanel, 
+    isListening,
+    toggleFullscreen, 
+    setFullscreen,
+    toggleShortcutsPanel,
+    setShortcutsPanel,
+    setListening,
+  } = usePosUIStore();
+  
+  // Referencia para Speech Recognition
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Cargar estado de caja y configuración
   const loadCashRegister = useCallback(async () => {
@@ -251,6 +270,16 @@ export default function POSPage() {
   // Atajos de teclado
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // F11 - Toggle fullscreen
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+      // F1 - Mostrar panel de atajos
+      if (e.key === 'F1') {
+        e.preventDefault();
+        toggleShortcutsPanel();
+      }
       // F2 - Abrir pago
       if (e.key === 'F2' && items.length > 0) {
         e.preventDefault();
@@ -259,6 +288,15 @@ export default function POSPage() {
       }
       // Escape - Cerrar modales
       if (e.key === 'Escape') {
+        // Si está en fullscreen, salir primero
+        if (isFullscreen) {
+          toggleFullscreen();
+          return;
+        }
+        if (showShortcutsPanel) {
+          setShortcutsPanel(false);
+          return;
+        }
         if (showPayment) {
           setShowPayment(false);
         } else if (showSearch) {
@@ -348,7 +386,70 @@ export default function POSPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [items, showPayment, showSearch, showAddProduct, clearCart, searchResults, selectedSearchIndex, selectedCartIndex, selectedPaymentIndex, paymentMethod, paymentMethodsOrder, incrementQuantity, decrementQuantity, removeItem, setPaymentMethod]);
+  }, [items, showPayment, showSearch, showAddProduct, showShortcutsPanel, isFullscreen, clearCart, searchResults, selectedSearchIndex, selectedCartIndex, selectedPaymentIndex, paymentMethod, paymentMethodsOrder, incrementQuantity, decrementQuantity, removeItem, setPaymentMethod, toggleFullscreen, toggleShortcutsPanel, setShortcutsPanel]);
+
+  // Escuchar cambios de fullscreen del navegador (por si el usuario usa Escape)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [setFullscreen]);
+
+  // Búsqueda por voz
+  const startVoiceSearch = useCallback(() => {
+    // Verificar soporte de Web Speech API
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn('Speech Recognition no soportado en este navegador');
+      return;
+    }
+
+    if (isListening) {
+      // Si ya está escuchando, detener
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    
+    recognition.lang = 'es-AR'; // Español Argentina
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setListening(true);
+    };
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
+      console.log('[POS] Voice search result:', transcript);
+      setSearchQuery(transcript);
+      
+      // Buscar automáticamente
+      setTimeout(async () => {
+        const results = await searchProducts(transcript);
+        setSearchResults(results.slice(0, 20));
+        setShowSearch(true);
+        setSelectedSearchIndex(0);
+      }, 100);
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('[POS] Voice search error:', event.error);
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognition.start();
+  }, [isListening, setListening, searchProducts]);
 
   // Manejar escaneo o búsqueda
   const handleScan = async (e: React.FormEvent) => {
@@ -551,6 +652,113 @@ export default function POSPage() {
 
   return (
     <div className="relative flex h-full flex-col xl:flex-row">
+      {/* Panel de atajos de teclado */}
+      {showShortcutsPanel && (
+        <div className="absolute inset-0 z-50 bg-app-bg/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShortcutsPanel(false)}>
+          <div 
+            className="bg-app-card border border-app-border rounded-2xl shadow-2xl max-w-lg w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <FiCommand className="text-primary-500" />
+                Atajos de Teclado
+              </h2>
+              <button 
+                onClick={() => setShortcutsPanel(false)}
+                className="p-1.5 rounded-lg hover:bg-app-bg text-app-muted hover:text-app-text"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Navegación */}
+              <div>
+                <h3 className="text-sm font-semibold text-app-muted mb-2 uppercase tracking-wider">Navegación</h3>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Pantalla completa</span>
+                    <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">F11</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Mostrar esta ayuda</span>
+                    <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">F1</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Salir / Cerrar modal</span>
+                    <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">Esc</kbd>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Ventas */}
+              <div>
+                <h3 className="text-sm font-semibold text-app-muted mb-2 uppercase tracking-wider">Ventas</h3>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Abrir pago</span>
+                    <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">F2</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Buscar producto</span>
+                    <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">F4</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Limpiar carrito</span>
+                    <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">F12</kbd>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Carrito */}
+              <div>
+                <h3 className="text-sm font-semibold text-app-muted mb-2 uppercase tracking-wider">Carrito</h3>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Navegar items</span>
+                    <div className="flex gap-1">
+                      <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">↑</kbd>
+                      <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">↓</kbd>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Agregar cantidad</span>
+                    <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">+</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Quitar cantidad</span>
+                    <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">-</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Eliminar item</span>
+                    <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">Supr</kbd>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Modal de pago */}
+              <div>
+                <h3 className="text-sm font-semibold text-app-muted mb-2 uppercase tracking-wider">Modal de Pago</h3>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between py-1.5 px-3 bg-app-bg rounded-lg">
+                    <span>Cambiar método de pago</span>
+                    <div className="flex gap-1">
+                      <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">←</kbd>
+                      <kbd className="px-2 py-1 bg-app-card border border-app-border rounded text-sm font-mono">→</kbd>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-app-border text-center text-sm text-app-muted">
+              Presiona <kbd className="px-1.5 py-0.5 bg-app-bg border border-app-border rounded text-xs font-mono">F1</kbd> o <kbd className="px-1.5 py-0.5 bg-app-bg border border-app-border rounded text-xs font-mono">Esc</kbd> para cerrar
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Overlay caja cerrada */}
       {!cashLoading && !cashRegister && (
         <div className="absolute inset-0 bg-app-bg/95 z-40 flex items-center justify-center backdrop-blur-sm">
@@ -575,17 +783,33 @@ export default function POSPage() {
 
       {/* Panel izquierdo - Carrito */}
       <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
-        {/* Input de escaneo */}
+        {/* Input de escaneo con búsqueda por voz */}
         <form onSubmit={handleScan} className="mb-4">
-          <input
-            ref={scanInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Escanear código de barras o buscar... (F4)"
-            className="input-scan"
-            autoFocus
-          />
+          <div className="relative flex gap-2">
+            <input
+              ref={scanInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Escanear código de barras o buscar... (F4)"
+              className="input-scan flex-1"
+              autoFocus
+            />
+            
+            {/* Botón búsqueda por voz */}
+            <button
+              type="button"
+              onClick={startVoiceSearch}
+              className={`flex-shrink-0 p-3 rounded-xl border transition-all ${
+                isListening 
+                  ? 'bg-red-500 border-red-500 text-white animate-pulse' 
+                  : 'bg-app-card border-app-border text-app-muted hover:text-app-text hover:border-primary-500'
+              }`}
+              title={isListening ? 'Escuchando... (click para detener)' : 'Buscar por voz'}
+            >
+              {isListening ? <FiMicOff size={20} /> : <FiMic size={20} />}
+            </button>
+          </div>
         </form>
 
         {/* Último producto escaneado */}

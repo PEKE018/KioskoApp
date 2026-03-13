@@ -3,16 +3,25 @@ import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '../i18n';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useThemeStore, ACCENT_COLORS, AccentColor, ThemeMode } from '../stores/themeStore';
 import {
-  FiDatabase,
   FiShield,
   FiInfo,
   FiSave,
-  FiPercent,
   FiGlobe,
   FiDownload,
   FiRefreshCw,
   FiCheckCircle,
+  FiDroplet,
+  FiHome,
+  FiFileText,
+  FiDollarSign,
+  FiPackage,
+  FiLock,
+  FiCheck,
+  FiSun,
+  FiMoon,
+  FiMonitor,
 } from 'react-icons/fi';
 import {
   clearPendingUpdate,
@@ -34,11 +43,15 @@ interface AppConfig {
   showUnitsPerBox: boolean;
 }
 
+type TabType = 'appearance' | 'business' | 'security' | 'about';
+
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'general' | 'business' | 'security' | 'about'>('general');
+  const [activeTab, setActiveTab] = useState<TabType>('appearance');
   const [, setLoading] = useState(true);
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
+  const { accentColor, setAccentColor, themeMode, setThemeMode } = useThemeStore();
+  
   const [businessData, setBusinessData] = useState({
     businessName: 'Mi Negocio',
     businessAddress: '',
@@ -51,11 +64,13 @@ export default function SettingsPage() {
     showCostPrice: true,
     showUnitsPerBox: true,
   });
+  
   const [securityData, setSecurityData] = useState({
     oldPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+  
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Estado de actualizaciones
@@ -70,10 +85,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const result = await window.api.settings.get() as {
-          success: boolean;
-          data?: AppConfig;
-        };
+        const result = await window.api.settings.get() as { success: boolean; data?: AppConfig };
         if (result.success && result.data) {
           setBusinessData({
             businessName: result.data.businessName || 'Mi Negocio',
@@ -97,7 +109,7 @@ export default function SettingsPage() {
     loadSettings();
   }, []);
 
-  // Cargar versión actual y configurar listeners de actualizaciones
+  // Cargar versión y listeners de actualizaciones
   useEffect(() => {
     const loadVersion = async () => {
       try {
@@ -105,13 +117,9 @@ export default function SettingsPage() {
         if (result.success && result.version) {
           setCurrentVersion(result.version);
           clearPendingUpdateIfInstalled(result.version);
-
           const pendingUpdate = getPendingUpdate();
           if (pendingUpdate && pendingUpdate.version !== result.version) {
-            setUpdateInfo({
-              version: pendingUpdate.version,
-              releaseNotes: pendingUpdate.releaseNotes,
-            });
+            setUpdateInfo({ version: pendingUpdate.version, releaseNotes: pendingUpdate.releaseNotes });
             setUpdateStatus(pendingUpdate.status);
           }
         }
@@ -121,15 +129,10 @@ export default function SettingsPage() {
     };
     loadVersion();
 
-    // Listeners para actualizaciones
     const offAvailable = window.api.updater.onUpdateAvailable((info: unknown) => {
       const updateData = info as { version?: string; releaseNotes?: string };
       if (updateData.version) {
-        setPendingUpdate({
-          version: updateData.version,
-          releaseNotes: updateData.releaseNotes,
-          status: 'available',
-        });
+        setPendingUpdate({ version: updateData.version, releaseNotes: updateData.releaseNotes, status: 'available' });
       }
       setUpdateStatus('available');
       setUpdateInfo(updateData);
@@ -144,22 +147,18 @@ export default function SettingsPage() {
     const offDownloaded = window.api.updater.onUpdateDownloaded((info: unknown) => {
       const updateData = info as { version?: string; releaseNotes?: string };
       if (updateData.version) {
-        setPendingUpdate({
-          version: updateData.version,
-          releaseNotes: updateData.releaseNotes,
-          status: 'downloaded',
-        });
+        setPendingUpdate({ version: updateData.version, releaseNotes: updateData.releaseNotes, status: 'downloaded' });
       }
       setUpdateStatus('downloaded');
       setUpdateInfo(updateData);
     });
 
     const offError = window.api.updater.onUpdateError?.((error: unknown) => {
-      const message = typeof error === 'object' && error !== null && 'message' in error
+      const errorMessage = typeof error === 'object' && error !== null && 'message' in error
         ? String((error as { message?: string }).message)
-        : 'Error al descargar la actualización';
+        : 'Error al descargar';
       setUpdateStatus('error');
-      setMessage({ type: 'error', text: message });
+      setMessage({ type: 'error', text: errorMessage });
     });
 
     return () => {
@@ -170,7 +169,6 @@ export default function SettingsPage() {
     };
   }, []);
 
-  // Funciones para actualizaciones
   const checkForUpdates = useCallback(async () => {
     setUpdateStatus('checking');
     try {
@@ -180,21 +178,18 @@ export default function SettingsPage() {
           setPendingUpdate({ version: result.version, status: 'available' });
           setUpdateInfo({ version: result.version });
           setUpdateStatus('available');
-          return;
-        }
-
-        if (!result.updateAvailable) {
+        } else {
           clearPendingUpdate();
           setUpdateStatus('idle');
           setMessage({ type: 'success', text: 'Ya tienes la última versión' });
         }
       } else {
         setUpdateStatus('error');
-        setMessage({ type: 'error', text: result.error || 'Error al verificar actualizaciones' });
+        setMessage({ type: 'error', text: result.error || 'Error al verificar' });
       }
-    } catch (error) {
+    } catch {
       setUpdateStatus('error');
-      setMessage({ type: 'error', text: 'Error al conectar con el servidor de actualizaciones' });
+      setMessage({ type: 'error', text: 'Error de conexión' });
     }
   }, []);
 
@@ -204,11 +199,11 @@ export default function SettingsPage() {
       const result = await window.api.updater.download() as { success: boolean; error?: string };
       if (!result.success) {
         setUpdateStatus('error');
-        setMessage({ type: 'error', text: result.error || 'Error al descargar la actualización' });
+        setMessage({ type: 'error', text: result.error || 'Error al descargar' });
       }
-    } catch (error) {
+    } catch {
       setUpdateStatus('error');
-      setMessage({ type: 'error', text: 'Error al descargar la actualización' });
+      setMessage({ type: 'error', text: 'Error al descargar' });
     }
   }, []);
 
@@ -216,13 +211,12 @@ export default function SettingsPage() {
     try {
       const cashResult = await window.api.cashRegister.getCurrent() as { success: boolean; data?: { id: string } | null };
       if (cashResult.success && cashResult.data) {
-        setMessage({ type: 'error', text: 'Cierre la caja antes de instalar la actualización.' });
+        setMessage({ type: 'error', text: 'Cierre la caja antes de actualizar' });
         return;
       }
-
       await window.api.updater.install();
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Error al instalar la actualización' });
+    } catch {
+      setMessage({ type: 'error', text: 'Error al instalar' });
     }
   }, []);
 
@@ -245,17 +239,16 @@ export default function SettingsPage() {
       }) as { success: boolean; error?: string };
 
       if (result.success) {
-        // Actualizar el store global para reflejar en el sidebar
         updateSettings({
           businessName: businessData.businessName,
           businessAddress: businessData.businessAddress || null,
           businessPhone: businessData.businessPhone || null,
         });
-        setMessage({ type: 'success', text: 'Configuración guardada correctamente' });
+        setMessage({ type: 'success', text: 'Configuración guardada' });
       } else {
         setMessage({ type: 'error', text: result.error || 'Error al guardar' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Error de conexión' });
     }
     setTimeout(() => setMessage(null), 3000);
@@ -276,29 +269,28 @@ export default function SettingsPage() {
       ) as { success: boolean; error?: string };
 
       if (result.success) {
-        setMessage({ type: 'success', text: 'Contraseña actualizada correctamente' });
+        setMessage({ type: 'success', text: 'Contraseña actualizada' });
         setSecurityData({ oldPassword: '', newPassword: '', confirmPassword: '' });
       } else {
-        setMessage({ type: 'error', text: result.error || 'Error al cambiar contraseña' });
+        setMessage({ type: 'error', text: result.error || 'Error al cambiar' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Error de conexión' });
     }
-
     setTimeout(() => setMessage(null), 3000);
   };
 
   const tabs = [
-    { id: 'general', label: t('settings.general'), icon: FiGlobe },
-    { id: 'business', label: t('settings.business'), icon: FiDatabase },
-    { id: 'security', label: t('settings.security'), icon: FiShield },
-    { id: 'about', label: t('settings.about'), icon: FiInfo },
+    { id: 'appearance' as const, label: 'Apariencia', icon: FiDroplet },
+    { id: 'business' as const, label: 'Negocio', icon: FiHome },
+    { id: 'security' as const, label: 'Seguridad', icon: FiShield },
+    { id: 'about' as const, label: 'Acerca de', icon: FiInfo },
   ];
 
   return (
-    <div className="h-full flex flex-col p-6">
+    <div className="h-full flex flex-col p-6 overflow-hidden">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6 flex-shrink-0">
         <h1 className="text-2xl font-bold">{t('settings.title')}</h1>
         <p className="text-app-muted">{t('settings.subtitle')}</p>
       </div>
@@ -306,379 +298,480 @@ export default function SettingsPage() {
       {/* Mensaje */}
       {message && (
         <div
-          className={`mb-4 p-3 rounded-lg ${
+          className={`mb-4 p-3 rounded-lg flex items-center gap-2 flex-shrink-0 ${
             message.type === 'success'
               ? 'bg-stock-ok/20 border border-stock-ok/30 text-stock-ok'
               : 'bg-stock-critical/20 border border-stock-critical/30 text-stock-critical'
           }`}
         >
+          {message.type === 'success' ? <FiCheckCircle /> : null}
           {message.text}
         </div>
       )}
 
-      <div className="flex gap-6 flex-1">
-        {/* Sidebar de tabs */}
-        <div className="w-56 space-y-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`nav-link w-full ${
-                activeTab === tab.id ? 'active' : ''
-              }`}
-            >
-              <tab.icon size={20} />
-              <span>{tab.label}</span>
-            </button>
-          ))}
+      <div className="flex gap-6 flex-1 min-h-0">
+        {/* Sidebar */}
+        <div className="w-48 flex-shrink-0">
+          <nav className="space-y-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-primary-500/20 text-primary-400 font-medium'
+                    : 'text-app-muted hover:bg-app-card hover:text-app-text'
+                }`}
+              >
+                <tab.icon size={20} />
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </nav>
         </div>
 
         {/* Contenido */}
-        <div className="flex-1 card">
-          {/* Tab General */}
-          {activeTab === 'general' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <FiGlobe className="text-primary-400" />
-                  {t('settings.language')}
-                </h3>
-                <p className="text-app-muted text-sm mb-4">
-                  {t('settings.languageDescription')}
-                </p>
+        <div className="flex-1 overflow-y-auto pr-2">
+          {/* ===== TAB APARIENCIA ===== */}
+          {activeTab === 'appearance' && (
+            <div className="space-y-8">
+              {/* Idioma */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                    <FiGlobe className="text-primary-400" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Idioma</h3>
+                    <p className="text-sm text-app-muted">Selecciona el idioma de la aplicación</p>
+                  </div>
+                </div>
                 
-                <div className="flex gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => {
-                      changeLanguage('es');
-                      setCurrentLanguage('es');
-                    }}
-                    className={`flex-1 p-4 rounded-xl border-2 transition-all ${
+                    onClick={() => { changeLanguage('es'); setCurrentLanguage('es'); }}
+                    className={`p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
                       currentLanguage === 'es'
                         ? 'border-primary-500 bg-primary-500/10'
-                        : 'border-app-border hover:border-app-muted'
+                        : 'border-app-border hover:border-app-muted bg-app-bg'
                     }`}
                   >
-                    <div className="text-3xl mb-2">🇪🇸</div>
-                    <div className="font-medium">{t('settings.spanish')}</div>
+                    <span className="text-3xl">🇪🇸</span>
+                    <div className="text-left">
+                      <p className="font-semibold">ES</p>
+                      <p className="text-sm text-app-muted">Español</p>
+                    </div>
+                    {currentLanguage === 'es' && (
+                      <FiCheck className="ml-auto text-primary-400" size={20} />
+                    )}
                   </button>
                   <button
-                    onClick={() => {
-                      changeLanguage('en');
-                      setCurrentLanguage('en');
-                    }}
-                    className={`flex-1 p-4 rounded-xl border-2 transition-all ${
+                    onClick={() => { changeLanguage('en'); setCurrentLanguage('en'); }}
+                    className={`p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
                       currentLanguage === 'en'
                         ? 'border-primary-500 bg-primary-500/10'
-                        : 'border-app-border hover:border-app-muted'
+                        : 'border-app-border hover:border-app-muted bg-app-bg'
                     }`}
                   >
-                    <div className="text-3xl mb-2">🇺🇸</div>
-                    <div className="font-medium">{t('settings.english')}</div>
+                    <span className="text-3xl">🇺🇸</span>
+                    <div className="text-left">
+                      <p className="font-semibold">US</p>
+                      <p className="text-sm text-app-muted">English</p>
+                    </div>
+                    {currentLanguage === 'en' && (
+                      <FiCheck className="ml-auto text-primary-400" size={20} />
+                    )}
                   </button>
                 </div>
-              </div>
+              </section>
+
+              {/* Modo de tema */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                    <FiMoon className="text-primary-400" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Modo de tema</h3>
+                    <p className="text-sm text-app-muted">Elige entre claro, oscuro o automático</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  {([
+                    { mode: 'light' as ThemeMode, label: 'Claro', icon: FiSun, desc: 'Fondo claro' },
+                    { mode: 'dark' as ThemeMode, label: 'Oscuro', icon: FiMoon, desc: 'Fondo oscuro' },
+                    { mode: 'system' as ThemeMode, label: 'Sistema', icon: FiMonitor, desc: 'Automático' },
+                  ]).map(({ mode, label, icon: Icon, desc }) => (
+                    <button
+                      key={mode}
+                      onClick={() => setThemeMode(mode)}
+                      className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                        themeMode === mode
+                          ? 'border-primary-500 bg-primary-500/10'
+                          : 'border-app-border hover:border-app-muted bg-app-bg'
+                      }`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        themeMode === mode ? 'bg-primary-500/20' : 'bg-app-border/50'
+                      }`}>
+                        <Icon size={24} className={themeMode === mode ? 'text-primary-400' : 'text-app-muted'} />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-semibold">{label}</p>
+                        <p className="text-xs text-app-muted">{desc}</p>
+                      </div>
+                      {themeMode === mode && (
+                        <FiCheck className="text-primary-400" size={18} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Color de acento */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                    <FiDroplet className="text-primary-400" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Color de acento</h3>
+                    <p className="text-sm text-app-muted">Personaliza el color principal de la aplicación</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-11 gap-3">
+                  {(Object.keys(ACCENT_COLORS) as AccentColor[]).map((color) => {
+                    const colorData = ACCENT_COLORS[color];
+                    const isSelected = accentColor === color;
+                    const isNeutral = color === 'slate' || color === 'zinc';
+                    return (
+                      <button
+                        key={color}
+                        onClick={() => setAccentColor(color)}
+                        className={`group relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                          isSelected
+                            ? 'border-white/50 bg-white/5'
+                            : 'border-transparent hover:border-app-border bg-app-bg hover:bg-app-border/30'
+                        }`}
+                        title={colorData.name}
+                      >
+                        <div
+                          className={`w-10 h-10 rounded-full transition-transform ${
+                            isSelected ? 'scale-110 ring-4 ring-white/20' : 'group-hover:scale-105'
+                          } ${isNeutral ? 'border-2 border-app-border' : ''}`}
+                          style={{ backgroundColor: color === 'zinc' ? '#e4e4e7' : colorData.primary }}
+                        >
+                          {isSelected && (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <FiCheck 
+                                className={`drop-shadow-lg ${color === 'zinc' ? 'text-gray-700' : 'text-white'}`} 
+                                size={20} 
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-xs text-app-muted">{colorData.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Preview */}
+                <div className="mt-6 p-4 bg-app-bg rounded-xl border border-app-border">
+                  <p className="text-sm text-app-muted mb-3">Vista previa</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button className="btn-primary px-4 py-2 text-sm">
+                      Botón Primario
+                    </button>
+                    <button className="btn-secondary px-4 py-2 text-sm">
+                      Botón Secundario
+                    </button>
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-500/20 text-primary-400 text-sm">
+                      <FiCheckCircle size={14} />
+                      Badge
+                    </span>
+                  </div>
+                </div>
+              </section>
             </div>
           )}
 
-          {/* Tab Negocio */}
+          {/* ===== TAB NEGOCIO ===== */}
           {activeTab === 'business' && (
             <form onSubmit={handleSaveBusiness} className="space-y-6">
-              <div>
-                <h3 className="text-lg font-bold mb-4">Datos del Negocio</h3>
+              {/* Datos del negocio */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                    <FiHome className="text-primary-400" size={20} />
+                  </div>
+                  <h3 className="font-semibold text-lg">Datos del Negocio</h3>
+                </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-app-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">
                       Nombre del negocio
                     </label>
                     <input
                       type="text"
                       value={businessData.businessName}
-                      onChange={(e) =>
-                        setBusinessData((d) => ({ ...d, businessName: e.target.value }))
-                      }
+                      onChange={(e) => setBusinessData((d) => ({ ...d, businessName: e.target.value }))}
                       className="input"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-app-muted mb-1">
-                      CUIT
-                    </label>
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">CUIT</label>
                     <input
                       type="text"
                       value={businessData.businessCuit}
-                      onChange={(e) =>
-                        setBusinessData((d) => ({ ...d, businessCuit: e.target.value }))
-                      }
+                      onChange={(e) => setBusinessData((d) => ({ ...d, businessCuit: e.target.value }))}
                       className="input font-mono"
                       placeholder="XX-XXXXXXXX-X"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-app-muted mb-1">
-                      Dirección
-                    </label>
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">Dirección</label>
                     <input
                       type="text"
                       value={businessData.businessAddress}
-                      onChange={(e) =>
-                        setBusinessData((d) => ({ ...d, businessAddress: e.target.value }))
-                      }
+                      onChange={(e) => setBusinessData((d) => ({ ...d, businessAddress: e.target.value }))}
                       className="input"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-app-muted mb-1">
-                      Teléfono
-                    </label>
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">Teléfono</label>
                     <input
                       type="text"
                       value={businessData.businessPhone}
-                      onChange={(e) =>
-                        setBusinessData((d) => ({ ...d, businessPhone: e.target.value }))
-                      }
+                      onChange={(e) => setBusinessData((d) => ({ ...d, businessPhone: e.target.value }))}
                       className="input"
                     />
                   </div>
                 </div>
-              </div>
+              </section>
 
-              <div>
-                <h3 className="text-lg font-bold mb-4">Configuración de Tickets</h3>
+              {/* Tickets */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                    <FiFileText className="text-primary-400" size={20} />
+                  </div>
+                  <h3 className="font-semibold text-lg">Configuración de Tickets</h3>
+                </div>
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-app-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">
                       Encabezado del ticket
                     </label>
                     <input
                       type="text"
                       value={businessData.ticketHeader}
-                      onChange={(e) =>
-                        setBusinessData((d) => ({ ...d, ticketHeader: e.target.value }))
-                      }
+                      onChange={(e) => setBusinessData((d) => ({ ...d, ticketHeader: e.target.value }))}
                       className="input"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-app-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">
                       Pie del ticket
                     </label>
                     <input
                       type="text"
                       value={businessData.ticketFooter}
-                      onChange={(e) =>
-                        setBusinessData((d) => ({ ...d, ticketFooter: e.target.value }))
-                      }
+                      onChange={(e) => setBusinessData((d) => ({ ...d, ticketFooter: e.target.value }))}
                       className="input"
-                      placeholder="Texto opcional al final del ticket"
+                      placeholder="Texto opcional"
                     />
                   </div>
                 </div>
-              </div>
+              </section>
 
-              <div>
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <FiPercent className="text-primary-400" />
-                  Configuración de Pagos
-                </h3>
+              {/* Pagos */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                    <FiDollarSign className="text-primary-400" size={20} />
+                  </div>
+                  <h3 className="font-semibold text-lg">Configuración de Pagos</h3>
+                </div>
                 
-                <div className="bg-app-bg rounded-xl p-4 border border-app-border space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-app-muted mb-1">
-                        Recargo Transferencia General (%)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={businessData.transferFeePercent}
-                          onChange={(e) =>
-                            setBusinessData((d) => ({ ...d, transferFeePercent: Number(e.target.value) }))
-                          }
-                          className="input pr-8"
-                          min={0}
-                          max={100}
-                          step={0.5}
-                          placeholder="0"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted">%</span>
-                      </div>
-                      <p className="text-xs text-app-muted mt-1">
-                        Se aplica a toda la compra
-                      </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-app-bg rounded-xl border border-app-border">
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">
+                      Recargo Transferencia General (%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={businessData.transferFeePercent}
+                        onChange={(e) => setBusinessData((d) => ({ ...d, transferFeePercent: Number(e.target.value) }))}
+                        className="input pr-10"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted">%</span>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-app-muted mb-1">
-                        🚬 Recargo Cigarrillos (%)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={businessData.cigaretteTransferFeePercent}
-                          onChange={(e) =>
-                            setBusinessData((d) => ({ ...d, cigaretteTransferFeePercent: Number(e.target.value) }))
-                          }
-                          className="input pr-8"
-                          min={0}
-                          max={100}
-                          step={0.5}
-                          placeholder="0"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted">%</span>
-                      </div>
-                      <p className="text-xs text-app-muted mt-1">
-                        Adicional para productos marcados como cigarrillos
-                      </p>
+                    <p className="text-xs text-app-muted mt-2">Se aplica a toda la compra</p>
+                  </div>
+                  <div className="p-4 bg-app-bg rounded-xl border border-app-border">
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">
+                      🚬 Recargo Cigarrillos (%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={businessData.cigaretteTransferFeePercent}
+                        onChange={(e) => setBusinessData((d) => ({ ...d, cigaretteTransferFeePercent: Number(e.target.value) }))}
+                        className="input pr-10"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted">%</span>
                     </div>
+                    <p className="text-xs text-app-muted mt-2">Adicional para cigarrillos</p>
                   </div>
                 </div>
-              </div>
+              </section>
 
-              <div>
-                <h3 className="text-lg font-bold mb-4">Opciones de Productos</h3>
-                <p className="text-sm text-app-muted mb-4">
-                  Configura qué campos se muestran en el formulario de productos
-                </p>
+              {/* Productos */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                    <FiPackage className="text-primary-400" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Opciones de Productos</h3>
+                    <p className="text-sm text-app-muted">Campos en el formulario de productos</p>
+                  </div>
+                </div>
                 
-                <div className="bg-app-bg rounded-xl p-4 border border-app-border space-y-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
+                <div className="space-y-3">
+                  <label className="flex items-center gap-4 p-4 bg-app-bg rounded-xl border border-app-border cursor-pointer hover:border-primary-500/50 transition-colors">
                     <input
                       type="checkbox"
                       checked={businessData.showCostPrice}
-                      onChange={(e) =>
-                        setBusinessData((d) => ({ ...d, showCostPrice: e.target.checked }))
-                      }
+                      onChange={(e) => setBusinessData((d) => ({ ...d, showCostPrice: e.target.checked }))}
                       className="w-5 h-5 rounded border-app-border bg-app-bg text-primary-500 focus:ring-primary-500"
                     />
-                    <div>
-                      <span className="font-medium">Mostrar precio de costo</span>
-                      <p className="text-xs text-app-muted">
-                        Permite registrar el precio de costo de los productos
-                      </p>
+                    <div className="flex-1">
+                      <p className="font-medium">Mostrar precio de costo</p>
+                      <p className="text-sm text-app-muted">Registrar el precio de costo de los productos</p>
                     </div>
                   </label>
                   
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="flex items-center gap-4 p-4 bg-app-bg rounded-xl border border-app-border cursor-pointer hover:border-primary-500/50 transition-colors">
                     <input
                       type="checkbox"
                       checked={businessData.showUnitsPerBox}
-                      onChange={(e) =>
-                        setBusinessData((d) => ({ ...d, showUnitsPerBox: e.target.checked }))
-                      }
+                      onChange={(e) => setBusinessData((d) => ({ ...d, showUnitsPerBox: e.target.checked }))}
                       className="w-5 h-5 rounded border-app-border bg-app-bg text-primary-500 focus:ring-primary-500"
                     />
-                    <div>
-                      <span className="font-medium">Mostrar unidades por caja</span>
-                      <p className="text-xs text-app-muted">
-                        Permite configurar cuántas unidades vienen por caja/paquete
-                      </p>
+                    <div className="flex-1">
+                      <p className="font-medium">Mostrar unidades por caja</p>
+                      <p className="text-sm text-app-muted">Configurar cuántas unidades vienen por caja/paquete</p>
                     </div>
                   </label>
                 </div>
-              </div>
+              </section>
 
-              <button type="submit" className="btn-primary flex items-center gap-2">
+              <button type="submit" className="btn-primary flex items-center gap-2 px-6 py-3">
                 <FiSave size={18} />
                 Guardar Cambios
               </button>
             </form>
           )}
 
-          {/* Tab Seguridad */}
+          {/* ===== TAB SEGURIDAD ===== */}
           {activeTab === 'security' && (
-            <form onSubmit={handleChangePassword} className="space-y-6 max-w-md">
-              <div>
-                <h3 className="text-lg font-bold mb-4">Cambiar Contraseña</h3>
+            <div className="max-w-lg">
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                    <FiLock className="text-primary-400" size={20} />
+                  </div>
+                  <h3 className="font-semibold text-lg">Cambiar Contraseña</h3>
+                </div>
                 
-                <div className="space-y-4">
+                <form onSubmit={handleChangePassword} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-app-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">
                       Contraseña actual
                     </label>
                     <input
                       type="password"
                       value={securityData.oldPassword}
-                      onChange={(e) =>
-                        setSecurityData((d) => ({ ...d, oldPassword: e.target.value }))
-                      }
+                      onChange={(e) => setSecurityData((d) => ({ ...d, oldPassword: e.target.value }))}
                       className="input"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-app-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">
                       Nueva contraseña
                     </label>
                     <input
                       type="password"
                       value={securityData.newPassword}
-                      onChange={(e) =>
-                        setSecurityData((d) => ({ ...d, newPassword: e.target.value }))
-                      }
+                      onChange={(e) => setSecurityData((d) => ({ ...d, newPassword: e.target.value }))}
                       className="input"
                       required
                       minLength={6}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-app-muted mb-1">
+                    <label className="block text-sm font-medium text-app-muted mb-1.5">
                       Confirmar nueva contraseña
                     </label>
                     <input
                       type="password"
                       value={securityData.confirmPassword}
-                      onChange={(e) =>
-                        setSecurityData((d) => ({ ...d, confirmPassword: e.target.value }))
-                      }
+                      onChange={(e) => setSecurityData((d) => ({ ...d, confirmPassword: e.target.value }))}
                       className="input"
                       required
                     />
                   </div>
-                </div>
-              </div>
-
-              <button type="submit" className="btn-primary flex items-center gap-2">
-                <FiShield size={18} />
-                Actualizar Contraseña
-              </button>
-            </form>
+                  <button type="submit" className="btn-primary flex items-center gap-2 mt-2">
+                    <FiShield size={18} />
+                    Actualizar Contraseña
+                  </button>
+                </form>
+              </section>
+            </div>
           )}
 
-          {/* Tab Acerca de */}
+          {/* ===== TAB ACERCA DE ===== */}
           {activeTab === 'about' && (
             <div className="space-y-6">
-              <div className="text-center py-8">
-                <h2 className="text-4xl font-bold text-primary-400 mb-2">
-                  🏪 StockPOS
+              {/* Logo y versión */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-8 text-center">
+                <div className="text-6xl mb-4">🏪</div>
+                <h2 className="text-3xl font-bold mb-1" style={{ color: ACCENT_COLORS[accentColor].primary }}>
+                  StockPOS
                 </h2>
-                <p className="text-app-muted">
-                  Sistema de Gestión de Stock y Ventas
-                </p>
-                <p className="text-app-muted text-sm mt-1">
-                  Versión {currentVersion}
-                </p>
-              </div>
+                <p className="text-app-muted mb-1">Sistema de Gestión de Stock y Ventas</p>
+                <p className="text-sm text-app-muted">Versión {currentVersion}</p>
+              </section>
 
-              {/* Sección de Actualizaciones */}
-              <div className="p-4 bg-app-bg rounded-lg">
-                <h4 className="font-bold mb-3 flex items-center gap-2">
-                  <FiDownload size={18} />
-                  Actualizaciones
-                </h4>
-                
+              {/* Actualizaciones */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                    <FiDownload className="text-primary-400" size={20} />
+                  </div>
+                  <h3 className="font-semibold text-lg">Actualizaciones</h3>
+                </div>
+
                 {updateStatus === 'idle' && (
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-app-muted">
-                      Verifica si hay nuevas versiones disponibles
-                    </p>
-                    <button
-                      onClick={checkForUpdates}
-                      className="btn-primary flex items-center gap-2"
-                    >
+                    <p className="text-sm text-app-muted">Verifica si hay nuevas versiones</p>
+                    <button onClick={checkForUpdates} className="btn-primary flex items-center gap-2">
                       <FiRefreshCw size={16} />
-                      Buscar actualizaciones
+                      Buscar
                     </button>
                   </div>
                 )}
@@ -686,31 +779,19 @@ export default function SettingsPage() {
                 {updateStatus === 'checking' && (
                   <div className="flex items-center gap-3 text-primary-400">
                     <FiRefreshCw className="animate-spin" size={20} />
-                    <span>Verificando actualizaciones...</span>
+                    <span>Verificando...</span>
                   </div>
                 )}
 
                 {updateStatus === 'available' && updateInfo && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-green-400">
+                    <div className="flex items-center gap-2 text-stock-ok">
                       <FiCheckCircle size={20} />
-                      <span className="font-medium">
-                        ¡Nueva versión disponible! v{updateInfo.version}
-                      </span>
+                      <span className="font-medium">Nueva versión v{updateInfo.version}</span>
                     </div>
-                    {updateInfo.releaseNotes && (
-                      <p className="text-sm text-app-muted pl-7">
-                        {typeof updateInfo.releaseNotes === 'string' 
-                          ? updateInfo.releaseNotes 
-                          : 'Mejoras y correcciones de errores'}
-                      </p>
-                    )}
-                    <button
-                      onClick={downloadUpdate}
-                      className="btn-primary flex items-center gap-2 ml-7"
-                    >
+                    <button onClick={downloadUpdate} className="btn-primary flex items-center gap-2">
                       <FiDownload size={16} />
-                      Descargar actualización
+                      Descargar
                     </button>
                   </div>
                 )}
@@ -719,36 +800,26 @@ export default function SettingsPage() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 text-primary-400">
                       <FiDownload size={20} />
-                      <span>Descargando actualización...</span>
+                      <span>Descargando...</span>
                     </div>
-                    <div className="w-full bg-slate-700 rounded-full h-3">
-                      <div 
-                        className="bg-primary-500 h-3 rounded-full transition-all duration-300"
+                    <div className="w-full bg-app-border rounded-full h-2.5">
+                      <div
+                        className="bg-primary-500 h-2.5 rounded-full transition-all"
                         style={{ width: `${downloadProgress}%` }}
                       />
                     </div>
-                    <p className="text-sm text-app-muted text-center">
-                      {downloadProgress.toFixed(1)}% completado
-                    </p>
+                    <p className="text-sm text-app-muted text-center">{downloadProgress.toFixed(0)}%</p>
                   </div>
                 )}
 
                 {updateStatus === 'downloaded' && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-green-400">
+                    <div className="flex items-center gap-2 text-stock-ok">
                       <FiCheckCircle size={20} />
-                      <span className="font-medium">
-                        Actualización lista para instalar (v{updateInfo?.version})
-                      </span>
+                      <span className="font-medium">Lista para instalar (v{updateInfo?.version})</span>
                     </div>
-                    <p className="text-sm text-app-muted pl-7">
-                      La aplicación se reiniciará para aplicar los cambios. 
-                      Tus datos se mantendrán intactos.
-                    </p>
-                    <button
-                      onClick={installUpdate}
-                      className="btn-primary flex items-center gap-2 ml-7"
-                    >
+                    <p className="text-sm text-app-muted">La app se reiniciará para aplicar cambios</p>
+                    <button onClick={installUpdate} className="btn-primary flex items-center gap-2">
                       <FiRefreshCw size={16} />
                       Instalar y reiniciar
                     </button>
@@ -757,49 +828,53 @@ export default function SettingsPage() {
 
                 {updateStatus === 'error' && (
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-red-400">
-                      Error al verificar actualizaciones
-                    </p>
-                    <button
-                      onClick={checkForUpdates}
-                      className="btn-secondary flex items-center gap-2"
-                    >
+                    <p className="text-sm text-stock-critical">Error al verificar</p>
+                    <button onClick={checkForUpdates} className="btn-secondary flex items-center gap-2">
                       <FiRefreshCw size={16} />
                       Reintentar
                     </button>
                   </div>
                 )}
-              </div>
+              </section>
 
+              {/* Info */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-app-bg rounded-lg">
+                <div className="bg-app-card border border-app-border rounded-xl p-4">
                   <p className="text-sm text-app-muted mb-1">Tecnologías</p>
                   <p className="font-medium">Electron + React + SQLite</p>
                 </div>
-                <div className="p-4 bg-app-bg rounded-lg">
+                <div className="bg-app-card border border-app-border rounded-xl p-4">
                   <p className="text-sm text-app-muted mb-1">Usuario actual</p>
                   <p className="font-medium">{user?.name}</p>
-                  <p className="text-xs text-app-muted">
-                    {user?.role === 'ADMIN' ? 'Administrador' : 'Cajero'}
-                  </p>
+                  <p className="text-xs text-app-muted">{user?.role === 'ADMIN' ? 'Administrador' : 'Cajero'}</p>
                 </div>
               </div>
 
-              <div className="p-4 bg-app-bg rounded-lg">
-                <h4 className="font-bold mb-2">Características principales</h4>
-                <ul className="text-sm text-app-muted space-y-1">
-                  <li>✓ Punto de venta ultra rápido con código de barras</li>
-                  <li>✓ Carga de stock por categorías</li>
-                  <li>✓ Control de inventario en tiempo real</li>
-                  <li>✓ Reportes de ventas y productos</li>
-                  <li>✓ Gestión de usuarios y permisos</li>
-                  <li>✓ Diseñado específicamente para kioscos</li>
-                </ul>
-              </div>
+              {/* Características */}
+              <section className="bg-app-card border border-app-border rounded-2xl p-6">
+                <h4 className="font-semibold mb-4">Características principales</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                  {[
+                    'Punto de venta ultra rápido',
+                    'Escaneo de código de barras',
+                    'Control de inventario en tiempo real',
+                    'Reportes de ventas y productos',
+                    'Gestión de usuarios y permisos',
+                    'Sistema de clientes y fiado',
+                    'Caja registradora con cierres',
+                    'Actualizaciones automáticas',
+                  ].map((feature, i) => (
+                    <div key={i} className="flex items-center gap-2 text-app-muted">
+                      <FiCheck className="text-stock-ok flex-shrink-0" size={16} />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
-              <div className="text-center text-sm text-app-muted">
-                <p>Desarrollado con ❤️ para kiosqueros</p>
-              </div>
+              <p className="text-center text-sm text-app-muted py-4">
+                Desarrollado con ❤️ para comerciantes
+              </p>
             </div>
           )}
         </div>

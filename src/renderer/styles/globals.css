@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Variables CSS base - serán sobrescritas dinámicamente por themeStore */
+:root {
+  /* Colores primarios (se actualizan con el color de acento) */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary: #3b82f6;
+  --color-primary-light: #60a5fa;
+  --color-primary-dark: #2563eb;
+  
+  /* Colores de fondo (se actualizan con acento + modo) */
+  --app-bg: #0f172a;
+  --app-card: #1e293b;
+  --app-border: #334155;
+  --app-text: #f1f5f9;
+  --app-muted: #94a3b8;
+}
+
 /* Estilos base para StockPOS */
 @layer base {
   * {
@@ -11,28 +36,38 @@
   body {
     @apply bg-app-bg text-app-text antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  /* Scrollbar personalizada para modo oscuro */
+  /* Scrollbar personalizada con color de acento */
   ::-webkit-scrollbar {
-    @apply w-2;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-app-bg;
+    background: var(--app-bg);
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-app-border rounded-full;
+    background: var(--app-border);
+    border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-app-muted;
+    background: var(--color-primary-500);
   }
 
-  /* Focus visible para accesibilidad */
+  /* Focus visible para accesibilidad - adaptativo al modo */
   :focus-visible {
-    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-app-bg;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary-500), 0 0 0 4px var(--app-bg);
+  }
+
+  /* Selección de texto con color de acento */
+  ::selection {
+    background-color: var(--color-primary-500);
+    color: white;
   }
 
   /* Números monospace para precios */
@@ -42,12 +77,24 @@
 }
 
 @layer components {
-  /* Botón primario */
+  /* Botón primario - usa variables CSS para theming dinámico */
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 active:bg-primary-800 
-           text-white font-semibold px-4 py-2 rounded-lg 
-           transition-colors duration-150 
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: var(--color-primary-600);
+    color: white;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: background-color 150ms, transform 100ms;
+  }
+  .btn-primary:hover {
+    background-color: var(--color-primary-700);
+  }
+  .btn-primary:active {
+    background-color: var(--color-primary-800);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   /* Botón secundario */
@@ -80,12 +127,15 @@
            shadow-lg hover:shadow-xl;
   }
 
-  /* Input de texto */
+  /* Input de texto - usa variables CSS para focus */
   .input {
     @apply w-full bg-app-bg border border-app-border rounded-lg 
            px-4 py-2 text-app-text placeholder-app-muted
-           focus:border-primary-500 focus:ring-1 focus:ring-primary-500
            transition-colors duration-150;
+  }
+  .input:focus {
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 1px var(--color-primary-500);
   }
 
   /* Input grande para búsqueda/escaneo */
@@ -93,8 +143,11 @@
     @apply w-full bg-app-bg border-2 border-app-border rounded-xl 
            px-6 py-4 text-2xl font-mono text-center text-app-text 
            placeholder-app-muted
-           focus:border-primary-500 focus:ring-2 focus:ring-primary-500
            transition-all duration-150;
+  }
+  .input-scan:focus {
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 2px var(--color-primary-500);
   }
 
   /* Card */
@@ -130,7 +183,7 @@
   }
 
   .table tr:hover td {
-    @apply bg-app-bg/50;
+    background-color: color-mix(in srgb, var(--app-bg) 50%, transparent);
   }
 
   /* Sidebar link */
@@ -141,7 +194,8 @@
   }
 
   .nav-link.active {
-    @apply bg-primary-600/20 text-primary-400;
+    background-color: color-mix(in srgb, var(--color-primary-600) 20%, transparent);
+    color: var(--color-primary-400);
   }
 
   /* Indicador de escaneo exitoso */

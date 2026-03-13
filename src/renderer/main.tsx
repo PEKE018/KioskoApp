@@ -4,6 +4,10 @@ import { HashRouter } from 'react-router-dom';
 import App from './App';
 import './styles/globals.css';
 import './i18n'; // Inicializar i18n
+import { useThemeStore } from './stores/themeStore';
+
+// Inicializar tema al cargar
+useThemeStore.getState().initTheme();
 
 console.log('[StockPOS] Iniciando renderer...');
 console.log('[StockPOS] window.api disponible:', typeof (window as any).api);

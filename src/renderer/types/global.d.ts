@@ -111,7 +111,65 @@ declare global {
         onUpdateError?: (callback: (error: unknown) => void) => (() => void) | void;
       };
     };
+    
+    // Web Speech API
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
   }
+  
+  // Web Speech API Types
+  interface SpeechRecognitionEvent extends Event {
+    results: SpeechRecognitionResultList;
+    resultIndex: number;
+  }
+  
+  interface SpeechRecognitionResultList {
+    length: number;
+    item(index: number): SpeechRecognitionResult;
+    [index: number]: SpeechRecognitionResult;
+  }
+  
+  interface SpeechRecognitionResult {
+    isFinal: boolean;
+    length: number;
+    item(index: number): SpeechRecognitionAlternative;
+    [index: number]: SpeechRecognitionAlternative;
+  }
+  
+  interface SpeechRecognitionAlternative {
+    transcript: string;
+    confidence: number;
+  }
+  
+  interface SpeechRecognitionErrorEvent extends Event {
+    error: string;
+    message: string;
+  }
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface SpeechRecognition extends EventTarget {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    maxAlternatives: number;
+    
+    start(): void;
+    stop(): void;
+    abort(): void;
+    
+    onstart: ((event: Event) => void) | null;
+    onend: ((event: Event) => void) | null;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+    onspeechstart: ((event: Event) => void) | null;
+    onspeechend: ((event: Event) => void) | null;
+  }
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const SpeechRecognition: {
+    prototype: SpeechRecognition;
+    new(): SpeechRecognition;
+  };
 }
 
 export {};

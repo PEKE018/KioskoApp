@@ -1,0 +1,15 @@
+
+========================================
+   CREDENCIALES INICIALES - StockPOS
+========================================
+
+Usuario: admin
+Contraseña: $rtb!KpQ8Uhq
+PIN: 0000
+
+IMPORTANTE: Cambie estas credenciales
+inmediatamente después del primer inicio.
+
+Este archivo se puede eliminar después
+de configurar su nueva contraseña.
+========================================

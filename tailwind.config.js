@@ -27,13 +27,13 @@ export default {
           low: '#f59e0b',      // Amarillo - stock bajo
           ok: '#22c55e',       // Verde - stock OK
         },
-        // Fondos oscuros para la app
+        // Colores de la app usando CSS variables para theming
         app: {
-          bg: '#0f172a',
-          card: '#1e293b',
-          border: '#334155',
-          text: '#f1f5f9',
-          muted: '#94a3b8',
+          bg: 'var(--app-bg)',
+          card: 'var(--app-card)',
+          border: 'var(--app-border)',
+          text: 'var(--app-text)',
+          muted: 'var(--app-muted)',
         }
       },
       fontFamily: {

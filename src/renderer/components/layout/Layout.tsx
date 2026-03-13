@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { usePosUIStore } from '../../stores/posUIStore';
 import UpdateNotification from '../UpdateNotification';
 import {
   FiShoppingCart,
@@ -15,6 +16,9 @@ import {
   FiBox,
   FiDollarSign,
   FiUserCheck,
+  FiMaximize,
+  FiMinimize,
+  FiCommand,
 } from 'react-icons/fi';
 
 export default function Layout() {
@@ -22,8 +26,14 @@ export default function Layout() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
+  const location = useLocation();
   
   const { settings, loadSettings } = useSettingsStore();
+  const { isFullscreen, toggleFullscreen, showShortcutsPanel, toggleShortcutsPanel } = usePosUIStore();
+  
+  // Solo ocultar sidebar si estamos en POS y en fullscreen
+  const isPosPage = location.pathname === '/pos';
+  const hideSidebar = isPosPage && isFullscreen;
 
   // Cargar configuración al montar
   useEffect(() => {
@@ -56,8 +66,9 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-app-bg">
-      {/* Sidebar */}
-      <aside className="w-56 bg-app-card border-r border-app-border flex flex-col">
+      {/* Sidebar - oculto en modo fullscreen del POS */}
+      {!hideSidebar && (
+        <aside className="w-56 bg-app-card border-r border-app-border flex flex-col">
         {/* Logo */}
         <div className="p-4 border-b border-app-border">
           <h1 className="text-xl font-bold text-primary-400">🏪 {settings.businessName}</h1>
@@ -129,6 +140,33 @@ export default function Layout() {
               </p>
             </div>
           </div>
+          
+          {/* Botones de utilidad */}
+          <div className="flex gap-2 mt-2 px-3">
+            <button
+              onClick={toggleShortcutsPanel}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-colors ${
+                showShortcutsPanel 
+                  ? 'bg-primary-600 border-primary-600 text-white' 
+                  : 'bg-app-bg border-app-border text-app-muted hover:text-app-text hover:border-primary-500'
+              }`}
+              title="Atajos de teclado (F1)"
+            >
+              <FiCommand size={18} />
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-colors ${
+                isFullscreen 
+                  ? 'bg-primary-600 border-primary-600 text-white' 
+                  : 'bg-app-bg border-app-border text-app-muted hover:text-app-text hover:border-primary-500'
+              }`}
+              title={isFullscreen ? 'Salir de pantalla completa (F11)' : 'Pantalla completa (F11)'}
+            >
+              {isFullscreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
+            </button>
+          </div>
+          
           <button
             onClick={handleLogout}
             className="nav-link w-full mt-2 text-stock-critical hover:text-red-400 hover:bg-red-500/10"
@@ -138,6 +176,7 @@ export default function Layout() {
           </button>
         </div>
       </aside>
+      )}
 
       {/* Contenido principal */}
       <main className="flex-1 overflow-hidden">
