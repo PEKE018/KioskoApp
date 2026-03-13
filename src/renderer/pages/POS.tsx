@@ -800,14 +800,23 @@ export default function POSPage() {
             <button
               type="button"
               onClick={startVoiceSearch}
-              className={`flex-shrink-0 p-3 rounded-xl border transition-all ${
+              className={`relative flex-shrink-0 p-3 rounded-xl border transition-all duration-300 group ${
                 isListening 
-                  ? 'bg-red-500 border-red-500 text-white animate-pulse' 
-                  : 'bg-app-card border-app-border text-app-muted hover:text-app-text hover:border-primary-500'
+                  ? 'bg-gradient-to-br from-red-500 to-red-600 border-red-400 text-white shadow-lg shadow-red-500/30' 
+                  : 'bg-app-card border-app-border text-app-muted hover:text-primary-500 hover:border-primary-500 hover:bg-primary-500/10'
               }`}
               title={isListening ? 'Escuchando... (click para detener)' : 'Buscar por voz'}
             >
-              {isListening ? <FiMicOff size={20} /> : <FiMic size={20} />}
+              {/* Ondas de audio cuando escucha */}
+              {isListening && (
+                <>
+                  <span className="absolute inset-0 rounded-xl bg-red-500 animate-ping opacity-30" />
+                  <span className="absolute inset-1 rounded-lg bg-red-500 animate-pulse opacity-20" />
+                </>
+              )}
+              <span className={`relative z-10 ${isListening ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'}`}>
+                {isListening ? <FiMicOff size={20} /> : <FiMic size={20} />}
+              </span>
             </button>
           </div>
         </form>
