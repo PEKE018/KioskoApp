@@ -1,5 +1,14 @@
 ; KioskoApp Custom NSIS Installer Script
 ; Solo textos personalizados - las funciones las maneja electron-builder
+;
+; NOTA SOBRE MIGRACIÓN DE DATOS (v2.0.0):
+; Este instalador NUNCA borra ni mueve la base de datos legacy de KioskoApp
+; (%APPDATA%\kiosko-app\kioskoapp.db): solo hace COPIAS de seguridad. La
+; migración real hacia la ruta oficial de StockPOS la hace la propia
+; aplicación en su primer arranque (src/main/database/legacyMigration.ts),
+; con backup con timestamp, validación y verificación de métricas.
+; Mantener este script NO destructivo: no agregar Delete/RMDir sobre
+; $APPDATA\kiosko-app ni $APPDATA\KioskoApp.
 
 ; =============================================
 ; INCLUDES NECESARIOS

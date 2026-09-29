@@ -156,6 +156,101 @@ function calculateSeparateCashBreakdown(
   };
 }
 
+const PAYMENT_METHOD_ORDER = ['CASH', 'DEBIT', 'TRANSFER', 'CREDIT', 'FIADO', 'OTHER'];
+
+interface PaymentMethodBreakdownEntry {
+  method: string;
+  total: number;
+  products: SeparateCashProductSummary[];
+}
+
+/**
+ * Desglosa TODOS los productos vendidos (no solo los de "caja aparte") por
+ * medio de pago: cuánto entró en efectivo, débito, transferencia, etc., y
+ * el listado completo de productos vendidos bajo cada medio.
+ *
+ * Reusa el mismo criterio que calculateSeparateCashBreakdown para ventas
+ * con pago mixto: reparte cantidad/importe de cada item de forma
+ * proporcional entre los dos medios de pago usados en esa venta.
+ */
+function calculatePaymentMethodBreakdown(
+  salesWithItems: Array<{
+    total: number;
+    paymentMethod: string;
+    mixedPaymentMethod1: string | null;
+    mixedPaymentAmount1: number | null;
+    mixedPaymentMethod2: string | null;
+    mixedPaymentAmount2: number | null;
+    items: Array<{
+      quantity: number;
+      subtotal: number;
+      product: { id: string; name: string };
+    }>;
+  }>
+): PaymentMethodBreakdownEntry[] {
+  const buckets = new Map<string, SeparateCashProductSummary[]>();
+
+  const addToBucket = (
+    method: string,
+    productId: string,
+    productName: string,
+    quantity: number,
+    total: number
+  ) => {
+    const list = buckets.get(method) ?? [];
+    const existing = list.find((product) => product.productId === productId);
+
+    if (existing) {
+      existing.quantity += quantity;
+      existing.total += total;
+    } else {
+      list.push({ productId, productName, quantity, total, paymentMethod: method });
+    }
+
+    buckets.set(method, list);
+  };
+
+  for (const sale of salesWithItems) {
+    for (const item of sale.items) {
+      if (sale.paymentMethod === 'MIXED' && sale.mixedPaymentMethod1 && sale.mixedPaymentMethod2) {
+        const saleTotal = sale.total || 1;
+        const proportion1 = (sale.mixedPaymentAmount1 || 0) / saleTotal;
+        const proportion2 = (sale.mixedPaymentAmount2 || 0) / saleTotal;
+
+        addToBucket(
+          sale.mixedPaymentMethod1,
+          item.product.id,
+          item.product.name,
+          item.quantity * proportion1,
+          item.subtotal * proportion1
+        );
+        addToBucket(
+          sale.mixedPaymentMethod2,
+          item.product.id,
+          item.product.name,
+          item.quantity * proportion2,
+          item.subtotal * proportion2
+        );
+        continue;
+      }
+
+      addToBucket(sale.paymentMethod, item.product.id, item.product.name, item.quantity, item.subtotal);
+    }
+  }
+
+  const methods = Array.from(buckets.keys()).sort((a, b) => {
+    const indexA = PAYMENT_METHOD_ORDER.indexOf(a);
+    const indexB = PAYMENT_METHOD_ORDER.indexOf(b);
+    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+  });
+
+  return methods.map((method) => {
+    const products = buckets.get(method)!;
+    const total = products.reduce((sum, product) => sum + product.total, 0);
+    return { method, total, products };
+  });
+}
+
 async function buildCashRegisterDetails(cashRegisterId: string) {
   const cashRegister = await prisma.cashRegister.findUnique({
     where: { id: cashRegisterId },
@@ -181,12 +276,14 @@ async function buildCashRegisterDetails(cashRegisterId: string) {
 
   const { separateCashTotal, separateCashProducts } = calculateSeparateCashBreakdown(salesWithItems);
   const generalCashTotal = cashRegister.salesTotal - separateCashTotal;
+  const paymentMethodBreakdown = calculatePaymentMethodBreakdown(salesWithItems);
 
   return {
     ...cashRegisterWithUser,
     separateCashTotal,
     separateCashProducts,
     generalCashTotal,
+    paymentMethodBreakdown,
   };
 }
 

@@ -7,16 +7,12 @@ import { ipcMain, dialog, app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { logger } from '../utils/logger';
+import { getProductionDbPath, getBackupDir } from '../database/dbPaths';
 
-// Obtener ruta de la base de datos
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-const dbPath = isDev 
-  ? path.join(__dirname, '../../../prisma/stockpos.db')
-  : path.join(app.getPath('userData'), 'stockpos.db');
-
-const backupDir = isDev
-  ? path.join(__dirname, '../../../backups')
-  : path.join(app.getPath('userData'), 'backups');
+// Ruta de la base de datos y de backups: SIEMPRE desde dbPaths.ts (única
+// fuente de verdad, compartida con init.ts y autoUpdater.ts).
+const dbPath = getProductionDbPath();
+const backupDir = getBackupDir();
 
 interface BackupInfo {
   name: string;

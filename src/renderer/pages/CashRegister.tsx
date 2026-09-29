@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   FiAlertCircle,
-  FiCalendar,
   FiCheck,
   FiChevronRight,
   FiClock,
   FiDollarSign,
-  FiTrendingDown,
-  FiTrendingUp,
   FiUser,
   FiX,
 } from 'react-icons/fi';
@@ -30,6 +27,12 @@ const paymentMethodLabels: Record<string, string> = {
   OTHER: 'Otro',
 };
 
+interface PaymentMethodBreakdownEntry {
+  method: string;
+  total: number;
+  products: SeparateCashProduct[];
+}
+
 interface CashRegister {
   id: string;
   status: string;
@@ -44,6 +47,7 @@ interface CashRegister {
   separateCashTotal?: number;
   separateCashProducts?: SeparateCashProduct[];
   generalCashTotal?: number;
+  paymentMethodBreakdown?: PaymentMethodBreakdownEntry[];
 }
 
 interface CashRegisterResult {
@@ -62,6 +66,7 @@ export default function CashRegisterPage() {
   const [detailCash, setDetailCash] = useState<CashRegister | null>(null);
   const [detailTitle, setDetailTitle] = useState('');
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [paymentMethodDetail, setPaymentMethodDetail] = useState<PaymentMethodBreakdownEntry | null>(null);
   const [openAmount, setOpenAmount] = useState('');
   const [closeAmount, setCloseAmount] = useState('');
   const [closeNotes, setCloseNotes] = useState('');
@@ -302,6 +307,43 @@ export default function CashRegisterPage() {
     );
   };
 
+  const renderPaymentMethodBreakdown = (breakdown?: PaymentMethodBreakdownEntry[]) => {
+    if (!breakdown || breakdown.length === 0) {
+      return (
+        <div className="rounded-lg border border-app-border bg-app-bg p-4 text-sm text-app-muted">
+          No hay ventas registradas todavia.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {breakdown.map((entry) => (
+          <div
+            key={entry.method}
+            className="flex flex-col gap-2 rounded-lg bg-app-bg p-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{paymentMethodLabels[entry.method] || entry.method}</p>
+              <p className="text-xs text-app-muted">{entry.products.length} producto(s) distintos</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-price text-lg font-bold">{formatPrice(entry.total)}</span>
+              <button
+                type="button"
+                onClick={() => setPaymentMethodDetail(entry)}
+                className="inline-flex items-center gap-1 rounded-lg border border-app-primary/30 px-3 py-1.5 text-sm font-medium text-app-primary transition-colors hover:bg-app-primary/10"
+              >
+                Ver detalles
+                <FiChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -329,8 +371,8 @@ export default function CashRegisterPage() {
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="card">
+      <div className="grid flex-1 grid-cols-1 gap-6 overflow-hidden xl:grid-cols-2">
+        <div className="card overflow-y-auto">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
             <FiClock className="text-app-primary" />
             Estado Actual
@@ -405,6 +447,11 @@ export default function CashRegisterPage() {
                 </p>
               </div>
 
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-app-muted">Total por Medio de Pago</h3>
+                {renderPaymentMethodBreakdown(currentCash.paymentMethodBreakdown)}
+              </div>
+
               <div className="rounded-lg border border-app-primary/30 bg-app-primary/10 p-4">
                 <p className="text-sm text-app-muted">Total Esperado en Caja</p>
                 <p className="text-2xl font-bold font-price text-app-primary">
@@ -445,71 +492,13 @@ export default function CashRegisterPage() {
           )}
         </div>
 
-        <div className="card">
+        <div className="card flex flex-col overflow-hidden">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-            <FiCalendar className="text-app-primary" />
-            Resumen del Dia
+            <FiClock className="text-app-primary" />
+            Historial de Cajas
           </h2>
 
-          {history.length > 0 && history[0].closedAt && new Date(history[0].closedAt).toDateString() === new Date().toDateString() ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-lg bg-app-bg p-4">
-                  <p className="text-sm text-app-muted">Ultimo Cierre</p>
-                  <p className="text-lg font-bold">{formatTime(history[0].closedAt)}</p>
-                </div>
-                <div className="rounded-lg bg-app-bg p-4">
-                  <p className="text-sm text-app-muted">En Caja del Turno</p>
-                  <p className="text-lg font-bold font-price text-stock-ok">{formatPrice(history[0].salesTotal)}</p>
-                </div>
-              </div>
-
-              {history[0].difference !== null && (
-                <div className={`rounded-lg p-4 ${
-                  history[0].difference === 0
-                    ? 'border border-stock-ok/30 bg-stock-ok/10'
-                    : history[0].difference > 0
-                      ? 'border border-blue-500/30 bg-blue-500/10'
-                      : 'border border-stock-critical/30 bg-stock-critical/10'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {history[0].difference === 0 ? (
-                      <FiCheck className="text-stock-ok" />
-                    ) : history[0].difference > 0 ? (
-                      <FiTrendingUp className="text-blue-500" />
-                    ) : (
-                      <FiTrendingDown className="text-stock-critical" />
-                    )}
-                    <span className="text-sm text-app-muted">Diferencia</span>
-                  </div>
-                  <p className={`text-xl font-bold font-price ${
-                    history[0].difference === 0
-                      ? 'text-stock-ok'
-                      : history[0].difference > 0
-                        ? 'text-blue-500'
-                        : 'text-stock-critical'
-                  }`}>
-                    {history[0].difference >= 0 ? '+' : ''}{formatPrice(history[0].difference)}
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="py-8 text-center text-app-muted">
-              <FiCalendar size={48} className="mx-auto mb-4 opacity-50" />
-              <p>No hay cierres de caja hoy</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="card flex flex-1 flex-col overflow-hidden">
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-          <FiClock className="text-app-primary" />
-          Historial de Cajas
-        </h2>
-
-        <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto">
           {history.length === 0 ? (
             <div className="py-8 text-center text-app-muted">
               <p>No hay historial de cajas</p>
@@ -566,6 +555,7 @@ export default function CashRegisterPage() {
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
 
@@ -679,6 +669,11 @@ export default function CashRegisterPage() {
                     {formatPrice(currentCash.initialAmount + (currentCash.generalCashTotal ?? currentCash.salesTotal))}
                   </span>
                 </div>
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-app-muted">Total por Medio de Pago</h3>
+                {renderPaymentMethodBreakdown(currentCash.paymentMethodBreakdown)}
               </div>
 
               <div>
@@ -840,6 +835,13 @@ export default function CashRegisterPage() {
 
                 <div>
                   <div className="mb-3 flex items-center justify-between gap-4">
+                    <h4 className="text-lg font-semibold">Total por Medio de Pago</h4>
+                  </div>
+                  {renderPaymentMethodBreakdown(detailCash.paymentMethodBreakdown)}
+                </div>
+
+                <div>
+                  <div className="mb-3 flex items-center justify-between gap-4">
                     <h4 className="text-lg font-semibold">Productos de Caja Aparte</h4>
                     <span className="text-sm text-app-muted">
                       {detailCash.separateCashProducts?.length || 0} registros
@@ -849,6 +851,31 @@ export default function CashRegisterPage() {
                 </div>
               </div>
             ) : null}
+          </div>
+        </div>
+      )}
+      {paymentMethodDetail && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl border border-app-border bg-app-card p-6 shadow-2xl animate-enter">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold">
+                  {paymentMethodLabels[paymentMethodDetail.method] || paymentMethodDetail.method}
+                </h3>
+                <p className="text-sm text-app-muted">
+                  Total: <span className="font-price font-bold text-app-primary">{formatPrice(paymentMethodDetail.total)}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setPaymentMethodDetail(null)}
+                className="rounded-lg p-2 transition-colors hover:bg-app-border"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto pr-1">
+              {renderSeparateCashTable(paymentMethodDetail.products)}
+            </div>
           </div>
         </div>
       )}

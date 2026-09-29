@@ -6,6 +6,7 @@
 import { autoUpdater } from 'electron-updater';
 import { BrowserWindow, ipcMain, app } from 'electron';
 import { logger } from '../utils/logger';
+import { getProductionDbPath, getBackupDir, getDocumentsBackupDir } from '../database/dbPaths';
 import fs from 'fs';
 import path from 'path';
 
@@ -180,8 +181,8 @@ export function setUpdateFeedURL(url: string): void {
  */
 async function createPreUpdateBackup(newVersion: string): Promise<{ success: boolean; path?: string; error?: string }> {
   try {
-    const dbPath = path.join(app.getPath('userData'), 'stockpos.db');
-    const backupDir = path.join(app.getPath('userData'), 'backups');
+    const dbPath = getProductionDbPath();
+    const backupDir = getBackupDir();
     
     // Asegurar que existe el directorio de backups
     if (!fs.existsSync(backupDir)) {
@@ -218,7 +219,7 @@ async function createPreUpdateBackup(newVersion: string): Promise<{ success: boo
     
     // También crear una copia en Documentos del usuario como respaldo adicional
     try {
-      const documentsBackupDir = path.join(app.getPath('documents'), 'stockpos-backups');
+      const documentsBackupDir = getDocumentsBackupDir();
       if (!fs.existsSync(documentsBackupDir)) {
         fs.mkdirSync(documentsBackupDir, { recursive: true });
       }
